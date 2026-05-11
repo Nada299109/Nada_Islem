@@ -14,6 +14,7 @@ import {
   MOCK_TRAINING,
 } from '@/lib/mock-data'
 import { DEMO_APP_STATE_KEY, DEMO_AUTH_STATE_KEY, createId } from '@/lib/demo-storage'
+import { api } from '@/lib/api'
 
 export interface Employee {
   id: string
@@ -920,10 +921,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [state.employees])
 
   const addEmployee = useCallback(async (employee: Partial<Employee>) => {
+    const dto = {
+      fullName: employee.name || 'New Employee',
+      personalEmail: employee.email || undefined,
+      phone: employee.phone || undefined,
+      address: employee.address || undefined,
+      dateOfBirth: employee.dateOfBirth || undefined,
+      department: employee.department || 'General',
+      status: employee.status || 'active',
+      contractType: employee.contractType || undefined,
+      workLocation: employee.workLocation || undefined,
+      salaryGrade: employee.salaryGrade || undefined,
+      probationEndDate: employee.probationEndDate || undefined,
+      hrNotes: employee.hrNotes || undefined,
+      emergencyName: employee.emergencyName || undefined,
+      emergencyPhone: employee.emergencyPhone || undefined,
+      emergencyRelation: employee.emergencyRelation || undefined,
+      joinDate: employee.joinDate || new Date().toISOString().split('T')[0],
+      managerId: employee.managerId || undefined,
+    }
+
+    let createdId = createId('emp')
+    try {
+      const created = await api.post('/employee', dto)
+      if (created?.id) createdId = created.id
+    } catch (err: any) {
+      throw new Error(err?.message || 'Failed to create employee on the backend.')
+    }
+
     commit(previous => {
       const next = structuredClone(previous)
       const newEmployee: Employee = {
-        id: createId('emp'),
+        id: createdId,
         name: employee.name || 'New Employee',
         email: employee.email || `employee-${next.employees.length + 1}@intraconnect.com`,
         phone: employee.phone || '+216 00 000 000',

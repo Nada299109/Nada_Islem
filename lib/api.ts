@@ -7,6 +7,10 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
+  if (typeof window !== 'undefined' && !headers.has('Authorization')) {
+    const token = window.localStorage.getItem('accessToken');
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+  }
 
   try {
     const response = await fetch(url, {

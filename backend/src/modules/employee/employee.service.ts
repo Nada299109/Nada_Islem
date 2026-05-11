@@ -83,15 +83,30 @@ export class EmployeeService {
     };
   }
 
+  private async resolveDepartmentId(value?: string): Promise<string | undefined> {
+    if (!value) return undefined;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+    if (isUuid) {
+      const existing = await this.prisma.department.findUnique({ where: { id: value } });
+      if (existing) return existing.id;
+    }
+    const byName = await this.prisma.department.findFirst({ where: { name: value } });
+    if (byName) return byName.id;
+    const created = await this.prisma.department.create({ data: { name: value } });
+    return created.id;
+  }
+
   async create(data: CreateEmployeeDTO, user: any) {
     this.ensureDirectorAccess(user);
+
+    const departmentId = await this.resolveDepartmentId(data.department);
 
     const employee = await this.prisma.employee.create({
       data: {
         ...(this.buildScalarData(data) as any),
         fullName: data.fullName,
-        department: data.department
-          ? { connect: { id: data.department } }
+        department: departmentId
+          ? { connect: { id: departmentId } }
           : undefined,
         user: data.userId
           ? { connect: { id: data.userId } }
@@ -190,12 +205,14 @@ export class EmployeeService {
       throw new ForbiddenException('You can only update your own employee profile');
     }
 
+    const departmentId = await this.resolveDepartmentId(data.department);
+
     return this.prisma.employee.update({
       where: { id },
       data: {
         ...this.buildScalarData(data),
-        department: data.department
-          ? { connect: { id: data.department } }
+        department: departmentId
+          ? { connect: { id: departmentId } }
           : undefined,
         manager: data.managerId
           ? { connect: { id: data.managerId } }

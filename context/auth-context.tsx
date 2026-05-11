@@ -206,22 +206,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const normalizedEmail = email.trim().toLowerCase()
       const account = accounts.find(item => item.email.toLowerCase() === normalizedEmail)
 
-      if (!account || account.password !== password) {
+      if (account && account.password === password) {
+        const hydrated = ensureEmployeeForAccount(account)
+        const nextUser: User = {
+          id: hydrated.id,
+          email: hydrated.email,
+          name: hydrated.name,
+          role: hydrated.role,
+          employeeId: hydrated.employeeId,
+          department: hydrated.department,
+          position: hydrated.position,
+          roleId: hydrated.roleId,
+          roleName: hydrated.roleName,
+          permissions: hydrated.permissions,
+        }
+
+        setUser(nextUser)
+        persistAuthState(nextUser, accounts.map(ensureEmployeeForAccount))
+        return
+      }
+
+      // No demo match — try the real backend.
+      let response: Response
+      try {
+        response = await fetch('http://localhost:3001/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email: normalizedEmail, password }),
+        })
+      } catch {
         throw new Error('Invalid email or password. Use one of the demo accounts or create a new one.')
       }
 
-      const hydrated = ensureEmployeeForAccount(account)
+      if (!response.ok) {
+        throw new Error('Invalid email or password.')
+      }
+
+      const data = await response.json()
+      const backendUser = data?.user ?? {}
+      const roles = Array.isArray(backendUser.roles) ? backendUser.roles : []
+      const primaryRole = roles[0] ?? {}
+      const permissions: string[] = roles
+        .flatMap((r: any) => Array.isArray(r?.permissions) ? r.permissions : [])
+        .map((p: any) => `${p.module}.${p.action}`)
+
       const nextUser: User = {
-        id: hydrated.id,
-        email: hydrated.email,
-        name: hydrated.name,
-        role: hydrated.role,
-        employeeId: hydrated.employeeId,
-        department: hydrated.department,
-        position: hydrated.position,
-        roleId: hydrated.roleId,
-        roleName: hydrated.roleName,
-        permissions: hydrated.permissions,
+        id: backendUser.id,
+        email: backendUser.email,
+        name: backendUser.employee?.fullName || backendUser.username || normalizedEmail,
+        role: primaryRole.code || primaryRole.name || 'employee',
+        employeeId: backendUser.employee?.id,
+        department: backendUser.employee?.department?.name,
+        position: backendUser.employee?.jobTitle?.title,
+        roleId: primaryRole.id,
+        roleName: primaryRole.name,
+        permissions,
+      }
+
+      if (typeof window !== 'undefined' && data?.accessToken) {
+        window.localStorage.setItem('accessToken', data.accessToken)
       }
 
       setUser(nextUser)
@@ -326,6 +370,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('accessToken')
+    }
+    fetch('http://localhost:3001/api/v1/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    }).catch(() => {})
     setUser(null)
     persistAuthState(null, accounts)
   }
