@@ -98,9 +98,10 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
         <div className="mt-6 pt-6 border-t border-slate-200">
           <div className="mb-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
             <p className="font-semibold text-slate-800 mb-2">Demo accounts</p>
-            <p>`nada.br@intraconnect.com` / `demo123`</p>
-            <p>`akram.tr@intraconnect.com` / `demo123`</p>
-            <p>`olfa.hm@intraconnect.com` / `demo123`</p>
+            <p>Admin — `nada.br@intraconnect.com` / `demo123`</p>
+            <p>Manager — `akram.tr@intraconnect.com` / `demo123`</p>
+            <p>HR — `sami.gh@intraconnect.com` / `demo123`</p>
+            <p>Employee — `olfa.hm@intraconnect.com` / `demo123`</p>
           </div>
           <p className="text-sm text-slate-600 text-center">Don&apos;t have an account?</p>
           <Button

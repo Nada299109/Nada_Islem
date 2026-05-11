@@ -610,6 +610,7 @@ function assignDefaultRoleToEmployee(employee: Employee, roles: RoleRecord[]) {
   const normalizedEmail = employee.email.toLowerCase()
   const adminRole = roles.find(role => role.code === 'admin')
   const managerRole = roles.find(role => role.code === 'manager')
+  const hrRole = roles.find(role => role.code === 'hr')
   const employeeRole = roles.find(role => role.code === 'employee')
 
   const inferredRole =
@@ -617,7 +618,9 @@ function assignDefaultRoleToEmployee(employee: Employee, roles: RoleRecord[]) {
       ? adminRole
       : normalizedEmail === 'akram.tr@intraconnect.com'
         ? managerRole
-        : employeeRole
+        : employee.department === 'HR'
+          ? hrRole ?? employeeRole
+          : employeeRole
 
   if (!inferredRole) return employee
 

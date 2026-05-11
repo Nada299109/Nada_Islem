@@ -53,6 +53,16 @@ const defaultAccounts: StoredAccount[] = [
     password: 'demo123',
   },
   {
+    id: 'user-hr',
+    email: 'sami.gh@intraconnect.com',
+    name: 'Sami Gharbi',
+    role: 'hr',
+    employeeId: '4',
+    department: 'HR',
+    position: 'HR Director',
+    password: 'demo123',
+  },
+  {
     id: 'user-employee',
     email: 'olfa.hm@intraconnect.com',
     name: 'Olfa Hammami',

@@ -67,6 +67,34 @@ export async function seed() {
       names.includes(`${permission.module}.${permission.action}`),
     );
 
+  const hrPermissions = selectPermissions([
+    'employees.read',
+    'employees.create',
+    'employees.update',
+    'employees.manage',
+    'users.create',
+    'users.read',
+    'users.manage',
+    'leave.read',
+    'leave.approve',
+    'documents.read',
+    'documents.manage',
+    'payroll.view',
+    'payroll.manage',
+    'attendance.read',
+    'attendance.manage',
+    'tickets.read',
+    'tickets.assign',
+    'facility.read',
+    'facility.manage',
+    'dashboard.read',
+    'audit.read',
+    'training.manage',
+    'reports.read',
+    'notifications.read',
+    'notifications.update',
+  ]);
+
   const managerPermissions = selectPermissions([
     'employees.read',
     'users.read',
@@ -122,6 +150,23 @@ export async function seed() {
       name: 'admin',
       code: 'admin',
       permissions: { connect: permissions.map(p => ({ id: p.id })) }
+    },
+  });
+
+  const hrRole = await prisma.role.upsert({
+    where: { name: 'hr' },
+    update: {
+      code: 'hr',
+      permissions: {
+        set: hrPermissions.map(p => ({ id: p.id })),
+      },
+    },
+    create: {
+      name: 'hr',
+      code: 'hr',
+      permissions: {
+        connect: hrPermissions.map(p => ({ id: p.id })),
+      },
     },
   });
 
@@ -283,7 +328,33 @@ export async function seed() {
     include: { employee: true },
   });
 
-  // 7️⃣ Manager User
+  // 7️⃣ HR User
+  console.log('👤 Creating HR user...');
+  const hrUser = await prisma.user.upsert({
+    where: { email: 'hr@virtide.com' },
+    update: {
+      username: 'hr',
+      passwordHash: await AuthHelpers.hash('Hr123!'),
+      roles: { set: [{ id: hrRole.id }] },
+    },
+    create: {
+      username: 'hr',
+      email: 'hr@virtide.com',
+      passwordHash: await AuthHelpers.hash('Hr123!'),
+      roles: { connect: [{ id: hrRole.id }] },
+      employee: {
+        create: {
+          fullName: 'Sami Gharbi',
+          departmentId: deptMap['Human Resources'],
+          status: 'active',
+          jobTitleId: jobTitleMap['HR Director'],
+        },
+      },
+    },
+    include: { employee: true },
+  });
+
+  // 8️⃣ Manager User
   console.log('👤 Creating manager user...');
   const managerUser = await prisma.user.upsert({
     where: { email: 'manager@virtide.com' },
@@ -309,7 +380,7 @@ export async function seed() {
     include: { employee: true },
   });
 
-  // 8️⃣ Sample Employee User
+  // 9️⃣ Sample Employee User
   console.log('👤 Creating sample employee user...');
   const sampleUser = await prisma.user.upsert({
     where: { email: 'employee@virtide.com' },
