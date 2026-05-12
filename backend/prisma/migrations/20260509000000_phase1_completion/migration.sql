@@ -4,7 +4,8 @@
 ALTER TABLE "AuditLog"
   ADD COLUMN "resourceId" TEXT,
   ADD COLUMN "oldValue"   TEXT,
-  ADD COLUMN "newValue"   TEXT;
+  ADD COLUMN "newValue"   TEXT,
+  ADD COLUMN IF NOT EXISTS "module" TEXT;
 
 CREATE INDEX IF NOT EXISTS "AuditLog_module_resourceId_idx"
   ON "AuditLog" ("module", "resourceId");
@@ -31,7 +32,9 @@ CREATE INDEX IF NOT EXISTS "LeaveRequest_startDate_endDate_idx"
 -- ===== Document: legal retention + expiry-notification idempotency =====
 ALTER TABLE "Document"
   ADD COLUMN "retentionUntil"   TIMESTAMP(3),
-  ADD COLUMN "expiryNotifiedAt" TIMESTAMP(3);
+  ADD COLUMN "expiryNotifiedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "type"     TEXT,
+  ADD COLUMN IF NOT EXISTS "category" TEXT;
 
 CREATE INDEX IF NOT EXISTS "Document_type_category_idx"
   ON "Document" ("type", "category");

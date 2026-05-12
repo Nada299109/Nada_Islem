@@ -1,3 +1,10 @@
+CREATE TABLE IF NOT EXISTS "Department" (
+  "id"        TEXT NOT NULL,
+  "name"      TEXT NOT NULL,
+  "code"      TEXT,
+  "managerId" TEXT,
+  CONSTRAINT "Department_pkey" PRIMARY KEY ("id")
+);
 ALTER TABLE "Tool"
   ADD COLUMN "instructions" TEXT,
   ADD COLUMN "iconUrl"      TEXT,

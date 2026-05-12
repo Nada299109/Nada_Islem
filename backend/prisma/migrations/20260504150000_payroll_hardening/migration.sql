@@ -6,8 +6,7 @@ ALTER TABLE "PayrollRecord"
   ADD COLUMN "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
 -- Default status switches to draft
-ALTER TABLE "PayrollRecord" ALTER COLUMN "status" SET DEFAULT 'draft';
-
+ALTER TABLE "PayrollRecord" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'draft';
 CREATE UNIQUE INDEX IF NOT EXISTS "PayrollRecord_employeeId_period_key"
   ON "PayrollRecord"("employeeId","period");
 

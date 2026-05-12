@@ -13,7 +13,20 @@ ALTER TABLE "Ticket"
   ADD CONSTRAINT "Ticket_mergedIntoId_fkey"
   FOREIGN KEY ("mergedIntoId") REFERENCES "Ticket"("id")
   ON DELETE SET NULL ON UPDATE CASCADE;
+-- TicketComment
+CREATE TABLE IF NOT EXISTS "TicketComment" (
+  "id"         TEXT NOT NULL,
+  "ticketId"   TEXT NOT NULL,
+  "employeeId" TEXT NOT NULL,
+  "content"    TEXT NOT NULL,
+  "createdAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "TicketComment_pkey" PRIMARY KEY ("id")
+);
 
+ALTER TABLE "TicketComment"
+  ADD CONSTRAINT "TicketComment_ticketId_fkey"
+  FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id")
+  ON DELETE CASCADE ON UPDATE CASCADE;
 -- TicketComment internal flag
 ALTER TABLE "TicketComment" ADD COLUMN "isInternal" BOOLEAN NOT NULL DEFAULT false;
 

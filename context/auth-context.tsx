@@ -33,6 +33,16 @@ interface AuthContextType {
 
 const defaultAccounts: StoredAccount[] = [
   {
+    id: 'user-virtide-admin',
+    email: 'admin@virtide.com',
+    name: 'Admin System',
+    role: 'admin',
+    employeeId: '0',
+    department: 'IT',
+    position: 'IT Manager',
+    password: 'Admin123!',
+  },
+  {
     id: 'user-admin',
     email: 'nada.br@intraconnect.com',
     name: 'Nada Ben Romdhane',
@@ -246,7 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ email: normalizedEmail, password }),
         })
       } catch {
-        throw new Error('Invalid email or password. Use one of the demo accounts or create a new one.')
+        throw new Error('Connection failed: the backend is unreachable. Please check that the backend is running on port 3001.')
       }
 
       if (!response.ok) {
