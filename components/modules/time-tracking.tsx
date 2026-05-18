@@ -93,7 +93,7 @@ export default function TimeTracking() {
               <p className="text-sm text-slate-500">Live timer</p>
               <p className="text-3xl font-mono font-bold text-blue-700">
                 {liveSeconds != null
-                  ? `${Math.floor(liveSeconds / 3600)}h ${Math.floor((liveSeconds % 3600) / 60).toString().padStart(2,'0')}m ${(liveSeconds % 60).toString().padStart(2,'0')}s`
+                  ? `${Math.floor(liveSeconds / 3600)}h ${Math.floor((liveSeconds % 3600) / 60).toString().padStart(2,'0')}m`
                   : formatLiveTimer({ record } as any)}
               </p>
             </div>

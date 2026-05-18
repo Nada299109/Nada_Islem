@@ -11,6 +11,7 @@ import {
   LoginUserDTO,
   RegenerateOtpDTO,
   RegisterUserDTO,
+  VerifyLoginOtpDTO,
 } from './auth.dto';
 import { AuditService } from '../audit/audit.service';
 import { JwtAuthGuard } from './auth.jwt.guard';
@@ -27,25 +28,48 @@ export class AuthController {
   ) {}
 
   @Post('login')
-  @ApiOperation({ description: 'Login user' })
+  @ApiOperation({ description: 'Login user — step 1 (password). May return OTP challenge.' })
   @ApiBody({ type: LoginUserDTO })
   @ApiResponse({ type: AuthResponseDTO })
   async login(
     @Body() user: LoginUserDTO,
     @Response() res,
-  ): Promise<AuthResponseDTO> {
-    const loginData = await this.authService.login(user);
+  ): Promise<any> {
+    const outcome = await this.authService.login(user);
 
-    res.cookie('accessToken', loginData.accessToken, {
+    if ('requireOtp' in outcome || 'requirePasswordChange' in outcome) {
+      // No session yet — wait for OTP verify / password change.
+      return res.status(200).send(outcome);
+    }
+
+    res.cookie('accessToken', outcome.accessToken, {
       expires: new Date(new Date().getTime() + JWT_EXPIRY_SECONDS * 1000),
       sameSite: 'strict',
       secure: true,
       httpOnly: true,
     });
 
-    await this.auditService.log('User logged in', loginData.user.id);
+    await this.auditService.log('User logged in', outcome.user.id);
 
-    return res.status(200).send(loginData);
+    return res.status(200).send(outcome);
+  }
+
+  @Post('verify-otp')
+  @ApiOperation({ description: 'Login step 2 — verify 2FA OTP and issue access token' })
+  @ApiBody({ type: VerifyLoginOtpDTO })
+  async verifyOtp(
+    @Body() dto: VerifyLoginOtpDTO,
+    @Response() res,
+  ): Promise<AuthResponseDTO> {
+    const data = await this.authService.verifyLoginOtp(dto);
+    res.cookie('accessToken', data.accessToken, {
+      expires: new Date(new Date().getTime() + JWT_EXPIRY_SECONDS * 1000),
+      sameSite: 'strict',
+      secure: true,
+      httpOnly: true,
+    });
+    await this.auditService.log('User logged in (2FA)', data.user.id);
+    return res.status(200).send(data);
   }
 
   @Post('register')

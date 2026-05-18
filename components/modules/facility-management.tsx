@@ -37,6 +37,7 @@ export default function FacilityManagement() {
     createFacilityRequest, escalateFacilityToTicket,
   } = useContext(AppContext)
 
+  const [activeTab, setActiveTab] = useState('report')
   const [reqForm, setReqForm] = useState({
     title: '', description: '', issueType: 'other',
     urgency: 'normal' as 'low' | 'normal' | 'high' | 'critical',
@@ -52,7 +53,9 @@ export default function FacilityManagement() {
     name: '', type: '', serialNumber: '', locationId: facilityLocations[0]?.id || '',
   })
 
-  const isAdmin = user?.role === 'admin'
+  // roles.docx §4.5 — Manage facility requests = HR + Admin.
+  const canManageFacility = user?.role === 'admin' || user?.role === 'hr'
+  const isAdmin = canManageFacility
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 3)
@@ -99,7 +102,7 @@ export default function FacilityManagement() {
         <p className="text-slate-600 mt-1">charge.docx §4.5 — locations, assets, issue reporting.</p>
       </div>
 
-      <Tabs defaultValue="report">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="report">Report Issue</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
@@ -184,7 +187,15 @@ export default function FacilityManagement() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="requests" className="mt-6">
+        <TabsContent value="requests" className="mt-6 space-y-3">
+          <div className="flex justify-end">
+            <Button
+              onClick={() => setActiveTab('report')}
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus size={16} /> Report Issue
+            </Button>
+          </div>
           <Card className="p-0 bg-white overflow-hidden">
             {facilityRequests.length === 0 ? (
               <div className="p-12 text-center text-slate-500">No facility requests yet.</div>

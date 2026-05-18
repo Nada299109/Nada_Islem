@@ -45,7 +45,8 @@ export default function Tickets() {
     location: ''
   })
 
-  const isAdminOrAgent = user?.role === 'admin' || user?.role === 'manager'
+  // roles.docx §4.4 — Manage/assign tickets = HR + Admin; team performance view = Manager + HR + Admin.
+  const isAdminOrAgent = user?.role === 'admin' || user?.role === 'hr' || user?.role === 'manager'
 
   const filteredTickets = useMemo(() => {
     return tickets.filter(t => {

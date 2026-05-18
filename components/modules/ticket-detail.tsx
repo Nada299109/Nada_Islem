@@ -37,7 +37,7 @@ export default function TicketDetail({ ticket, onClose }: TicketDetailProps) {
     try {
       await addTicketComment(ticket.id, newComment)
       // mark as internal if requested (admin/manager only)
-      if (commentIsInternal && (user?.role === 'admin' || user?.role === 'manager')) {
+      if (commentIsInternal && (user?.role === 'admin' || user?.role === 'hr' || user?.role === 'manager')) {
         // best-effort: find the latest comment and flip its flag
         const latest = (ticket.comments || [])[(ticket.comments || []).length - 1]
         if (latest) setCommentInternal(latest.id, true)
@@ -276,8 +276,8 @@ export default function TicketDetail({ ticket, onClose }: TicketDetailProps) {
               </div>
             )}
 
-            {/* Merge duplicate (admin) */}
-            {user?.role === 'admin' && (
+            {/* Merge duplicate (HR + Admin per roles.docx §4.4) */}
+            {(user?.role === 'admin' || user?.role === 'hr') && (
               <div className="p-4 border border-slate-200 rounded-xl space-y-2 bg-slate-50/30">
                 <h3 className="text-xs uppercase tracking-wider font-bold text-slate-500">Merge as duplicate</h3>
                 <div className="flex gap-2">
@@ -356,7 +356,7 @@ export default function TicketDetail({ ticket, onClose }: TicketDetailProps) {
             </Button>
           </div>
           <div className="flex items-center justify-between mt-2">
-            {(user?.role === 'admin' || user?.role === 'manager') ? (
+            {(user?.role === 'admin' || user?.role === 'hr' || user?.role === 'manager') ? (
               <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
                 <input
                   type="checkbox"

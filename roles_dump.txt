@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import docx; d=docx.Document('roles.docx'); print('\n'.join(p.text for p in d.paragraphs))
+                                                ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Habib Torjmen\AppData\Local\Programs\Python\Python314\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 143: character maps to <undefined>

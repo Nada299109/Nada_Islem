@@ -1,20 +1,46 @@
 'use client'
 
-import { useContext, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
 import { AppContext } from '@/context/app-context'
+import { AuthContext } from '@/context/auth-context'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { FileDown, DollarSign, Wallet, TrendingUp, Lock } from 'lucide-react'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import { FileDown, DollarSign, Wallet, TrendingUp, Lock, Plus } from 'lucide-react'
 
 export default function PayrollList() {
-  const { payrolls, isLoading } = useContext(AppContext)
+  const { payrolls, employees, generatePayroll, isLoading } = useContext(AppContext)
+  const { user } = useContext(AuthContext)
+  const canCreate = user?.role === 'admin' || user?.role === 'hr'
+
   const [reauthOpen, setReauthOpen] = useState(false)
   const [reauthPwd, setReauthPwd] = useState('')
   const [pendingPayrollId, setPendingPayrollId] = useState<string | null>(null)
   const [reauthError, setReauthError] = useState<string | null>(null)
+
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createForm, setCreateForm] = useState({
+    employeeId: '',
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    basicSalary: 3200,
+    allowances: 300,
+    deductions: 150,
+  })
+  const [createError, setCreateError] = useState<string | null>(null)
+  const netPreview = useMemo(
+    () => createForm.basicSalary + createForm.allowances - createForm.deductions,
+    [createForm.basicSalary, createForm.allowances, createForm.deductions],
+  )
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount)
@@ -31,12 +57,39 @@ export default function PayrollList() {
       setReauthError('Password required.')
       return
     }
-    // In demo mode we accept any non-empty password.
-    // When wired to backend, POST /payroll/:id/download with { password } and use the signed URL.
     setReauthOpen(false)
     alert(`Demo: payslip ${pendingPayrollId} download authorized. (Backend will return a signed URL.)`)
     setPendingPayrollId(null)
     setReauthPwd('')
+  }
+
+  const submitCreate = async () => {
+    setCreateError(null)
+    if (!createForm.employeeId) {
+      setCreateError('Pick an employee.')
+      return
+    }
+    const employee = employees.find(e => e.id === createForm.employeeId)
+    await generatePayroll({
+      employeeId: createForm.employeeId,
+      employeeName: employee?.name,
+      month: createForm.month,
+      year: createForm.year,
+      basicSalary: createForm.basicSalary,
+      allowances: createForm.allowances,
+      deductions: createForm.deductions,
+      netSalary: netPreview,
+      status: 'paid',
+    })
+    setCreateOpen(false)
+    setCreateForm({
+      employeeId: '',
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
+      basicSalary: 3200,
+      allowances: 300,
+      deductions: 150,
+    })
   }
 
   return (
@@ -46,6 +99,11 @@ export default function PayrollList() {
           <h1 className="text-3xl font-bold text-slate-900">Payroll & Payslips</h1>
           <p className="text-slate-600 mt-1">charge.docx §4.8 — re-auth required, signed URL only, no email attachments.</p>
         </div>
+        {canCreate && (
+          <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700">
+            <Plus size={16} /> Add Payslip
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -99,6 +157,7 @@ export default function PayrollList() {
         <Table>
           <TableHeader className="bg-slate-50">
             <TableRow>
+              {canCreate && <TableHead>Employee</TableHead>}
               <TableHead>Period</TableHead>
               <TableHead>Basic Salary</TableHead>
               <TableHead>Allowance</TableHead>
@@ -111,11 +170,12 @@ export default function PayrollList() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">Loading payroll data...</TableCell>
+                <TableCell colSpan={canCreate ? 8 : 7} className="text-center py-8">Loading payroll data...</TableCell>
               </TableRow>
             ) : payrolls.length > 0 ? (
               payrolls.map(payroll => (
                 <TableRow key={payroll.id} className="hover:bg-slate-50 transition-colors">
+                  {canCreate && <TableCell className="font-medium text-slate-700">{payroll.employeeName ?? '—'}</TableCell>}
                   <TableCell className="font-medium text-slate-900">
                     {payroll.month}/{payroll.year}
                   </TableCell>
@@ -144,7 +204,7 @@ export default function PayrollList() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-slate-500">
+                <TableCell colSpan={canCreate ? 8 : 7} className="text-center py-12 text-slate-500">
                   <DollarSign className="mx-auto mb-2 opacity-20" size={48} />
                   <p>No payroll records found</p>
                 </TableCell>
@@ -154,6 +214,7 @@ export default function PayrollList() {
         </Table>
       </Card>
 
+      {/* Re-auth dialog */}
       <Dialog open={reauthOpen} onOpenChange={setReauthOpen}>
         <DialogContent>
           <DialogHeader>
@@ -176,6 +237,98 @@ export default function PayrollList() {
             <Button variant="ghost" onClick={() => setReauthOpen(false)}>Cancel</Button>
             <Button onClick={confirmReauthAndDownload} className="bg-blue-600 hover:bg-blue-700">
               Confirm & download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create payslip dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add payslip</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Employee *</label>
+              <Select
+                value={createForm.employeeId}
+                onValueChange={v => setCreateForm({ ...createForm, employeeId: v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Pick an employee" /></SelectTrigger>
+                <SelectContent>
+                  {employees.map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.name} — {e.department}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Month</label>
+                <Input
+                  type="number" min={1} max={12}
+                  value={createForm.month}
+                  onChange={e => setCreateForm({ ...createForm, month: Math.max(1, Math.min(12, Number(e.target.value) || 1)) })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Year</label>
+                <Input
+                  type="number"
+                  value={createForm.year}
+                  onChange={e => setCreateForm({ ...createForm, year: Number(e.target.value) || new Date().getFullYear() })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Basic</label>
+                <Input
+                  type="number"
+                  value={createForm.basicSalary}
+                  onChange={e => setCreateForm({ ...createForm, basicSalary: Number(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Allowances</label>
+                <Input
+                  type="number"
+                  value={createForm.allowances}
+                  onChange={e => setCreateForm({ ...createForm, allowances: Number(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Deductions</label>
+                <Input
+                  type="number"
+                  value={createForm.deductions}
+                  onChange={e => setCreateForm({ ...createForm, deductions: Number(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
+              <span className="text-sm text-slate-600">Net salary</span>
+              <span className="text-lg font-bold text-emerald-600">{formatCurrency(netPreview)}</span>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Payslip PDF (optional, demo)</label>
+              <input type="file" accept="application/pdf" className="text-sm" />
+              <p className="text-xs text-slate-500 mt-1">
+                Production: uploaded to MinIO; signed URL emailed to employee — no attachment.
+              </p>
+            </div>
+
+            {createError && <p className="text-sm text-rose-600">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={submitCreate} className="bg-blue-600 hover:bg-blue-700">
+              Save payslip
             </Button>
           </DialogFooter>
         </DialogContent>

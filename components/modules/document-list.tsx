@@ -66,8 +66,12 @@ export default function DocumentList() {
                            doc.fileName.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesCategory = selectedCategory === 'all' || doc.category === selectedCategory
       
-      // Access control: admins see everything, users see public or their own
-      const hasAccess = user?.role === 'admin' || doc.isPublic || doc.uploadedById === user?.id
+      // roles.docx §4.7 — admins + HR see everything (documents.manage); others see public or own.
+      const hasAccess =
+        user?.role === 'admin' ||
+        user?.role === 'hr' ||
+        doc.isPublic ||
+        doc.uploadedById === user?.id
       
       const matchesOwnership = !showMyDocsOnly || doc.uploadedById === user?.id
       

@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 export async function seed() {
   console.log('🚀 Starting seeding...');
 
-  // 1️⃣ Permissions
+  // 1️⃣ Permissions — roles.docx Table 2.1 RBAC matrix.
   console.log('🔐 Creating permissions...');
   const permissionsData = [
     { action: 'manage', module: 'all' }, // Admin
@@ -22,22 +22,31 @@ export async function seed() {
     { action: 'manage', module: 'employees' },
     { action: 'create', module: 'leave' },
     { action: 'read', module: 'leave' },
+    { action: 'cancel', module: 'leave' },
     { action: 'approve', module: 'leave' },
+    { action: 'read_team', module: 'leave' },
+    { action: 'configure', module: 'leave' },
     { action: 'create', module: 'tickets' },
     { action: 'read', module: 'tickets' },
     { action: 'update', module: 'tickets' },
     { action: 'assign', module: 'tickets' },
     { action: 'manage', module: 'tickets' },
+    { action: 'read_team', module: 'tickets' },
+    { action: 'configure', module: 'tickets' },
     { action: 'read', module: 'documents' },
+    { action: 'upload_personal', module: 'documents' },
     { action: 'manage', module: 'documents' },
     { action: 'view', module: 'payroll' },
     { action: 'manage', module: 'payroll' },
     { action: 'read', module: 'reports' },
     { action: 'read', module: 'dashboard' },
+    { action: 'customize', module: 'dashboard' },
+    { action: 'configure', module: 'dashboard' },
     { action: 'read', module: 'audit' },
     { action: 'read', module: 'notifications' },
     { action: 'update', module: 'notifications' },
     { action: 'manage', module: 'settings' },
+    { action: 'manage', module: 'security' },
     { action: 'manage', module: 'training' },
     { action: 'read', module: 'profile' },
     { action: 'update', module: 'profile' },
@@ -49,7 +58,9 @@ export async function seed() {
     { action: 'manage', module: 'facility' },
     { action: 'read', module: 'attendance' },
     { action: 'create', module: 'attendance' },
+    { action: 'read_team', module: 'attendance' },
     { action: 'manage', module: 'attendance' },
+    { action: 'configure', module: 'attendance' },
   ];
 
   const permissions = [];
@@ -67,7 +78,71 @@ export async function seed() {
       names.includes(`${permission.module}.${permission.action}`),
     );
 
+  // ---- roles.docx Table 2.1 — strict mapping ----
+  // Shared baseline for every authenticated user (Login, Logout, OTP, Reset, Dashboard, etc.).
+  const baselineEmployeeCaps = [
+    'profile.read',
+    'profile.update',
+    'dashboard.read',
+    'dashboard.customize',
+    'notifications.read',
+    'notifications.update',
+    'leave.create',
+    'leave.cancel',
+    'leave.read',
+    'tickets.create',
+    'tickets.read',
+    'tickets.update',
+    'facility.create',
+    'facility.read',
+    'documents.read',
+    'documents.upload_personal',
+    'payroll.view',
+    'tools.read',
+    'attendance.create',
+    'attendance.read',
+    'feedback.submit',
+  ];
+
+  const employeePermissions = selectPermissions([...baselineEmployeeCaps]);
+
+  // Manager = Employee + team-view + leave approval (roles.docx Module 4.3, 4.4, 4.12).
+  const managerPermissions = selectPermissions([
+    ...baselineEmployeeCaps,
+    'leave.approve',
+    'leave.read_team',
+    'tickets.read_team',
+    'attendance.read_team',
+    'employees.read',
+    'users.read',
+    'reports.read',
+  ]);
+
+  // HR Administrator = Manager + lifecycle, document/payroll/tools admin, attendance adjust + policy,
+  // leave config, role/permission management. NOTE: audit.read is Admin-only per matrix.
   const hrPermissions = selectPermissions([
+    ...baselineEmployeeCaps,
+    // Leave 4.3
+    'leave.approve',
+    'leave.read_team',
+    'leave.configure',
+    // Tickets 4.4
+    'tickets.read_team',
+    'tickets.assign',
+    'tickets.manage',
+    // Attendance 4.12
+    'attendance.read_team',
+    'attendance.manage',
+    'attendance.configure',
+    // Documents 4.7
+    'documents.manage',
+    // Payroll 4.8
+    'payroll.manage',
+    // Tools 4.11
+    'tools.manage',
+    // Facility 4.5
+    'facility.manage',
+    // Employee 4.1
     'employees.read',
     'employees.create',
     'employees.update',
@@ -75,68 +150,15 @@ export async function seed() {
     'users.create',
     'users.read',
     'users.manage',
-    'leave.read',
-    'leave.approve',
-    'documents.read',
-    'documents.manage',
-    'payroll.view',
-    'payroll.manage',
-    'attendance.read',
-    'attendance.manage',
-    'tickets.read',
-    'tickets.assign',
-    'facility.read',
-    'facility.manage',
-    'dashboard.read',
-    'audit.read',
-    'training.manage',
-    'reports.read',
-    'notifications.read',
-    'notifications.update',
-  ]);
-
-  const managerPermissions = selectPermissions([
-    'employees.read',
-    'users.read',
-    'leave.approve',
-    'leave.read',
-    'tickets.manage',
-    'tickets.update',
-    'tickets.assign',
-    'tickets.read',
-    'documents.read',
-    'dashboard.read',
+    // Role/Permission 4.2
+    'roles.manage',
+    'permissions.manage',
+    // Reports + training (kept from prior baseline — operational scope per BRD note).
     'reports.read',
     'training.manage',
-    'notifications.read',
-    'notifications.update',
-    'payroll.view',
-    'facility.read',
-    'facility.manage',
-    'attendance.read',
-    'attendance.manage',
   ]);
 
-  const employeePermissions = selectPermissions([
-    'profile.read',
-    'profile.update',
-    'leave.create',
-    'leave.read',
-    'tickets.create',
-    'tickets.read',
-    'tickets.update',
-    'documents.read',
-    'feedback.submit',
-    'tools.read',
-    'notifications.read',
-    'notifications.update',
-    'dashboard.read',
-    'payroll.view',
-    'facility.read',
-    'facility.create',
-    'attendance.read',
-    'attendance.create',
-  ]);
+  // System Administrator gets everything — handled at role-create time via `permissions.map(...)`.
 
   // 2️⃣ Roles
   console.log('📝 Creating roles...');

@@ -487,29 +487,97 @@ const defaultTools: ToolRecord[] = [
   },
 ]
 
+// roles.docx Table 2.1 — single source of truth for per-role permissions.
+const EMPLOYEE_BASELINE_PERMS = [
+  'profile.read',
+  'profile.update',
+  'dashboard.read',
+  'dashboard.customize',
+  'notifications.read',
+  'notifications.update',
+  'leave.create',
+  'leave.cancel',
+  'leave.read',
+  'tickets.create',
+  'tickets.read',
+  'tickets.update',
+  'facility.create',
+  'facility.read',
+  'documents.read',
+  'documents.upload_personal',
+  'payroll.view',
+  'tools.read',
+  'attendance.create',
+  'attendance.read',
+  'feedback.submit',
+]
+
+const MANAGER_PERMS = [
+  ...EMPLOYEE_BASELINE_PERMS,
+  'leave.approve',
+  'leave.read_team',
+  'tickets.read_team',
+  'attendance.read_team',
+  'employees.read',
+  'users.read',
+  'reports.read',
+]
+
+const HR_PERMS = [
+  ...EMPLOYEE_BASELINE_PERMS,
+  // Leave 4.3
+  'leave.approve',
+  'leave.read_team',
+  'leave.configure',
+  // Tickets 4.4
+  'tickets.read_team',
+  'tickets.assign',
+  'tickets.manage',
+  // Attendance 4.12
+  'attendance.read_team',
+  'attendance.manage',
+  'attendance.configure',
+  // Documents 4.7
+  'documents.manage',
+  // Payroll 4.8
+  'payroll.manage',
+  // Tools 4.11
+  'tools.manage',
+  // Facility 4.5
+  'facility.manage',
+  // Employee 4.1
+  'employees.read',
+  'employees.create',
+  'employees.update',
+  'employees.manage',
+  'users.create',
+  'users.read',
+  'users.manage',
+  // Role/Permission 4.2
+  'roles.manage',
+  'permissions.manage',
+  // Operational
+  'reports.read',
+  'training.manage',
+]
+
+const ADMIN_PERMS = [
+  ...HR_PERMS,
+  // System Administration — Admin-only per matrix.
+  'dashboard.configure',
+  'tickets.configure',
+  'audit.read',
+  'settings.manage',
+  'security.manage',
+]
+
 const defaultRoles: RoleRecord[] = [
   {
     id: 'role-admin',
     name: 'Admin',
     code: 'admin',
-    description: 'Platform governance and unrestricted access',
-    permissions: [
-      'users.create',
-      'users.manage',
-      'roles.manage',
-      'permissions.manage',
-      'employees.manage',
-      'documents.manage',
-      'tickets.manage',
-      'leave.approve',
-      'leave.manage',
-      'payroll.manage',
-      'attendance.manage',
-      'facility.manage',
-      'settings.manage',
-      'dashboard.read',
-      'audit.read',
-    ],
+    description: 'System Administrator: full platform governance, audit, security, configuration (roles.docx)',
+    permissions: ADMIN_PERMS,
     memberCount: 1,
     system: true,
   },
@@ -518,39 +586,8 @@ const defaultRoles: RoleRecord[] = [
     name: 'HR',
     code: 'hr',
     description:
-      'HR Admin: employee lifecycle, leave/payroll/attendance/document operations (charge.docx §4.1, 4.3, 4.7, 4.8, 4.12)',
-    permissions: [
-      // Employee lifecycle
-      'employees.read',
-      'employees.manage',
-      'users.create',
-      'users.read',
-      'users.manage',
-      // Leave
-      'leave.read',
-      'leave.approve',
-      'leave.manage',
-      // Documents
-      'documents.read',
-      'documents.manage',
-      // Payroll (upload, publish, distribute)
-      'payroll.read',
-      'payroll.manage',
-      // Attendance (configure policy, correct records)
-      'attendance.read',
-      'attendance.manage',
-      // Help desk
-      'tickets.read',
-      'tickets.assign',
-      // Facility
-      'facility.read',
-      'facility.manage',
-      // Reporting
-      'dashboard.read',
-      'audit.read',
-      'training.manage',
-      'reports.read',
-    ],
+      'HR Administrator: employee lifecycle, role mgmt, leave/payroll/attendance/document operations (roles.docx)',
+    permissions: HR_PERMS,
     memberCount: 0,
     system: true,
   },
@@ -558,21 +595,8 @@ const defaultRoles: RoleRecord[] = [
     id: 'role-manager',
     name: 'Manager',
     code: 'manager',
-    description: 'Team approvals, help desk and dashboard oversight',
-    permissions: [
-      'employees.read',
-      'users.read',
-      'leave.approve',
-      'leave.read',
-      'tickets.manage',
-      'tickets.assign',
-      'documents.read',
-      'attendance.read',
-      'facility.read',
-      'dashboard.read',
-      'reports.read',
-      'training.manage',
-    ],
+    description: 'Manager: team-scoped approvals, calendar, ticket performance, attendance monitoring',
+    permissions: MANAGER_PERMS,
     memberCount: 2,
     system: true,
   },
@@ -580,25 +604,8 @@ const defaultRoles: RoleRecord[] = [
     id: 'role-employee',
     name: 'Employee',
     code: 'employee',
-    description: 'Self-service requests, facility reporting, and personal payslip/document access',
-    permissions: [
-      'profile.read',
-      'profile.update',
-      'leave.create',
-      'leave.read',
-      'tickets.create',
-      'tickets.read',
-      'documents.read',
-      // charge.docx §4.5: employees can report facility issues
-      'facility.create',
-      'facility.read',
-      // charge.docx §4.8: employees view their own payslip
-      'payroll.read',
-      // charge.docx §4.12: employees see their own attendance
-      'attendance.read',
-      'feedback.submit',
-      'tools.read',
-    ],
+    description: 'Employee: self-service for leaves, tickets, attendance, payslips, personal docs',
+    permissions: EMPLOYEE_BASELINE_PERMS,
     memberCount: 9,
     system: true,
   },
@@ -667,21 +674,46 @@ function synchronizeRoles(state: AppState): AppState {
   }
 }
 
-function createDefaultOnboardingPlans(employees: Employee[]): OnboardingPlan[] {
-  return employees.slice(0, 5).map((employee, index) => ({
+const DEFAULT_ONBOARDING_TEMPLATE: { key: string; label: string }[] = [
+  { key: 'contract', label: 'Sign employment contract' },
+  { key: 'documents', label: 'Upload identity documents' },
+  { key: 'first_login', label: 'Complete first-login and OTP setup' },
+  { key: 'profile', label: 'Complete personal profile' },
+  { key: 'tools', label: 'Set up email and collaboration tools' },
+  { key: 'orientation', label: 'Attend first-day orientation' },
+  { key: 'manager_intro', label: 'Meet direct manager' },
+  { key: 'compliance', label: 'Complete compliance training' },
+  { key: 'security', label: 'Read security policy and NDA' },
+]
+
+function buildOnboardingPlan(employee: Employee, mentorName?: string): OnboardingPlan {
+  const tasks = DEFAULT_ONBOARDING_TEMPLATE.map(t => ({
+    id: `${employee.id}-task-${t.key}`,
+    label: t.label,
+    done: false,
+  }))
+  return {
     id: `onboard-${employee.id}`,
     employeeId: employee.id,
-    mentor: index % 2 === 0 ? 'Akram Trimech' : 'Nada Ben Romdhane',
+    mentor: mentorName ?? 'Akram Trimech',
     startDate: employee.joinDate,
-    progress: index === 0 ? 80 : index === 1 ? 60 : 40,
-    tasks: [
-      { id: `${employee.id}-task-1`, label: 'Sign employment contract', done: true },
-      { id: `${employee.id}-task-2`, label: 'Upload identity documents', done: true },
-      { id: `${employee.id}-task-3`, label: 'Setup email and collaboration tools', done: index < 2 },
-      { id: `${employee.id}-task-4`, label: 'Attend first-day orientation', done: index === 0 },
-      { id: `${employee.id}-task-5`, label: 'Complete compliance training', done: false },
-    ],
-  }))
+    progress: 0,
+    tasks,
+  }
+}
+
+function createDefaultOnboardingPlans(employees: Employee[]): OnboardingPlan[] {
+  return employees.slice(0, 5).map((employee, index) => {
+    const plan = buildOnboardingPlan(
+      employee,
+      index % 2 === 0 ? 'Akram Trimech' : 'Nada Ben Romdhane',
+    )
+    // Pre-fill some tasks for seeded demo employees so the list isn't empty.
+    const seedDone = index === 0 ? 7 : index === 1 ? 5 : index === 2 ? 3 : index === 3 ? 2 : 1
+    plan.tasks = plan.tasks.map((task, i) => ({ ...task, done: i < seedDone }))
+    plan.progress = Math.round((seedDone / plan.tasks.length) * 100)
+    return plan
+  })
 }
 
 function buildDefaultState(): AppState {
@@ -971,8 +1003,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       next.employees = [newEmployee, ...next.employees]
+      // charge.docx §4.1 — auto-generate onboarding plan from default template.
+      if (!next.onboardingPlans.some(p => p.employeeId === newEmployee.id)) {
+        next.onboardingPlans = [buildOnboardingPlan(newEmployee), ...next.onboardingPlans]
+      }
       const synchronized = synchronizeRoles(next)
       appendAudit(next, 'CREATE_EMPLOYEE', 'EMPLOYEES', `Created employee ${newEmployee.name}`)
+      appendAudit(next, 'CREATE_ONBOARDING', 'ONBOARDING', `Auto-generated onboarding plan for ${newEmployee.name}`)
       return synchronized
     })
   }, [appendAudit, commit])

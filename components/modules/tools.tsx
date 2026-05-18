@@ -38,7 +38,7 @@ export default function Tools() {
             <ShieldCheck size={20} />
             <span className="text-sm font-medium">Frontend Demo Mode</span>
           </div>
-          {user?.role === 'admin' && (
+          {(user?.role === 'admin' || user?.role === 'hr') && (
             <Button
               className="gap-2 bg-blue-600 hover:bg-blue-700"
               onClick={() => addTool({
@@ -93,7 +93,7 @@ export default function Tools() {
                 Launch
                 <ExternalLink size={14} />
               </Button>
-              {user?.role === 'admin' && (
+              {(user?.role === 'admin' || user?.role === 'hr') && (
                 <Button
                   variant="ghost"
                   onClick={() => updateTool(tool.id, { active: !tool.active })}

@@ -4,6 +4,31 @@ import { createContext, useEffect, useMemo, useState, ReactNode } from 'react'
 
 import { DEMO_APP_STATE_KEY, DEMO_AUTH_STATE_KEY, createId } from '@/lib/demo-storage'
 
+// roles.docx Employee baseline — must match EMPLOYEE_BASELINE_PERMS in app-context.tsx.
+const DEFAULT_EMPLOYEE_PERMS = [
+  'profile.read',
+  'profile.update',
+  'dashboard.read',
+  'dashboard.customize',
+  'notifications.read',
+  'notifications.update',
+  'leave.create',
+  'leave.cancel',
+  'leave.read',
+  'tickets.create',
+  'tickets.read',
+  'tickets.update',
+  'facility.create',
+  'facility.read',
+  'documents.read',
+  'documents.upload_personal',
+  'payroll.view',
+  'tools.read',
+  'attendance.create',
+  'attendance.read',
+  'feedback.submit',
+]
+
 export interface User {
   id: string
   email: string
@@ -21,9 +46,16 @@ interface StoredAccount extends User {
   password: string
 }
 
+export type LoginStepOutcome =
+  | { kind: 'authenticated' }
+  | { kind: 'otp_required'; challengeToken: string; email: string; expiresAt: string }
+  | { kind: 'password_change_required'; email: string }
+
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<LoginStepOutcome>
+  verifyLoginOtp: (challengeToken: string, otp: string) => Promise<void>
+  completeFirstLogin: (email: string, otp: string, newPassword: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
   logout: () => void
   loginAsDemo: () => void
@@ -86,7 +118,9 @@ const defaultAccounts: StoredAccount[] = [
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
-  login: async () => {},
+  login: async () => ({ kind: 'authenticated' }),
+  verifyLoginOtp: async () => {},
+  completeFirstLogin: async () => {},
   register: async () => {},
   logout: () => {},
   loginAsDemo: () => {},
@@ -218,7 +252,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false)
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const hydrateBackendUser = (backendUser: any, fallbackEmail: string): User => {
+    const roles = Array.isArray(backendUser.roles) ? backendUser.roles : []
+    const primaryRole = roles[0] ?? {}
+    const permissions: string[] = roles
+      .flatMap((r: any) => Array.isArray(r?.permissions) ? r.permissions : [])
+      .map((p: any) => `${p.module}.${p.action}`)
+
+    return {
+      id: backendUser.id,
+      email: backendUser.email,
+      name: backendUser.employee?.fullName || backendUser.username || fallbackEmail,
+      role: primaryRole.code || primaryRole.name || 'employee',
+      employeeId: backendUser.employee?.id,
+      department: backendUser.employee?.department?.name,
+      position: backendUser.employee?.jobTitle?.title,
+      roleId: primaryRole.id,
+      roleName: primaryRole.name,
+      permissions,
+    }
+  }
+
+  const finalizeBackendSession = (data: any, fallbackEmail: string) => {
+    const nextUser = hydrateBackendUser(data?.user ?? {}, fallbackEmail)
+    if (typeof window !== 'undefined' && data?.accessToken) {
+      window.localStorage.setItem('accessToken', data.accessToken)
+    }
+    setUser(nextUser)
+    persistAuthState(nextUser, accounts.map(ensureEmployeeForAccount))
+  }
+
+  const login = async (email: string, password: string): Promise<LoginStepOutcome> => {
     setIsLoading(true)
     setError(null)
 
@@ -226,6 +290,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const normalizedEmail = email.trim().toLowerCase()
       const account = accounts.find(item => item.email.toLowerCase() === normalizedEmail)
 
+      // Demo accounts: skip backend round-trip but still simulate OTP step for parity.
       if (account && account.password === password) {
         const hydrated = ensureEmployeeForAccount(account)
         const nextUser: User = {
@@ -243,10 +308,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setUser(nextUser)
         persistAuthState(nextUser, accounts.map(ensureEmployeeForAccount))
-        return
+        return { kind: 'authenticated' }
       }
 
-      // No demo match — try the real backend.
       let response: Response
       try {
         response = await fetch('http://localhost:3001/api/v1/auth/login', {
@@ -264,34 +328,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await response.json()
-      const backendUser = data?.user ?? {}
-      const roles = Array.isArray(backendUser.roles) ? backendUser.roles : []
-      const primaryRole = roles[0] ?? {}
-      const permissions: string[] = roles
-        .flatMap((r: any) => Array.isArray(r?.permissions) ? r.permissions : [])
-        .map((p: any) => `${p.module}.${p.action}`)
 
-      const nextUser: User = {
-        id: backendUser.id,
-        email: backendUser.email,
-        name: backendUser.employee?.fullName || backendUser.username || normalizedEmail,
-        role: primaryRole.code || primaryRole.name || 'employee',
-        employeeId: backendUser.employee?.id,
-        department: backendUser.employee?.department?.name,
-        position: backendUser.employee?.jobTitle?.title,
-        roleId: primaryRole.id,
-        roleName: primaryRole.name,
-        permissions,
+      if (data?.requirePasswordChange) {
+        return { kind: 'password_change_required', email: data.email ?? normalizedEmail }
       }
 
-      if (typeof window !== 'undefined' && data?.accessToken) {
-        window.localStorage.setItem('accessToken', data.accessToken)
+      if (data?.requireOtp && data?.challengeToken) {
+        return {
+          kind: 'otp_required',
+          challengeToken: data.challengeToken,
+          email: data.email ?? normalizedEmail,
+          expiresAt: data.expiresAt,
+        }
       }
 
-      setUser(nextUser)
-      persistAuthState(nextUser, accounts.map(ensureEmployeeForAccount))
+      finalizeBackendSession(data, normalizedEmail)
+      return { kind: 'authenticated' }
     } catch (err: any) {
       setError(err.message || 'Login failed')
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const verifyLoginOtp = async (challengeToken: string, otp: string) => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await fetch('http://localhost:3001/api/v1/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ challengeToken, otp }),
+      })
+      if (!response.ok) {
+        throw new Error('Invalid or expired OTP code.')
+      }
+      const data = await response.json()
+      finalizeBackendSession(data, data?.user?.email ?? '')
+    } catch (err: any) {
+      setError(err.message || 'OTP verification failed')
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const completeFirstLogin = async (email: string, otp: string, newPassword: string) => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await fetch('http://localhost:3001/api/v1/auth/first-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, otp, newPassword }),
+      })
+      if (!response.ok) {
+        throw new Error('First-login activation failed. Check the OTP and password policy.')
+      }
+      const data = await response.json()
+      finalizeBackendSession(data, email)
+    } catch (err: any) {
+      setError(err.message || 'First-login failed')
+      throw err
     } finally {
       setIsLoading(false)
     }
@@ -328,17 +429,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             roleId: 'role-employee',
             roleName: 'Employee',
             roleCode: 'employee',
-            permissions: [
-              'profile.read',
-              'profile.update',
-              'leave.create',
-              'leave.read',
-              'tickets.create',
-              'tickets.read',
-              'documents.read',
-              'feedback.submit',
-              'tools.read',
-            ],
+            permissions: DEFAULT_EMPLOYEE_PERMS,
           },
         ]
         window.localStorage.setItem(DEMO_APP_STATE_KEY, JSON.stringify(parsed))
@@ -366,17 +457,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         position: newAccount.position,
         roleId: 'role-employee',
         roleName: 'Employee',
-        permissions: [
-          'profile.read',
-          'profile.update',
-          'leave.create',
-          'leave.read',
-          'tickets.create',
-          'tickets.read',
-          'documents.read',
-          'feedback.submit',
-          'tools.read',
-        ],
+        permissions: DEFAULT_EMPLOYEE_PERMS,
       }
 
       setAccounts(nextAccounts)
@@ -425,6 +506,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       login,
+      verifyLoginOtp,
+      completeFirstLogin,
       register,
       logout,
       loginAsDemo,

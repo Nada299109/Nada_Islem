@@ -117,7 +117,7 @@ export default function LeaveRequests({ isRequestForm = false }: LeaveRequestsPr
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-slate-900">
-          {user?.role === 'manager' ? 'Team Leave Requests' : 'My Leave Requests'}
+          {['manager', 'admin', 'hr'].includes(user?.role || '') ? 'Team Leave Requests' : 'My Leave Requests'}
         </h1>
       </div>
 
@@ -165,7 +165,7 @@ export default function LeaveRequests({ isRequestForm = false }: LeaveRequestsPr
                   <p className="text-sm text-slate-600">Type: <span className="font-medium">{req.type}</span></p>
                   {req.reason && <p className="text-sm text-slate-600 mt-1">Reason: {req.reason}</p>}
                 </div>
-                {user?.role === 'manager' && req.status === 'pending' && (
+                {['manager', 'admin', 'hr'].includes(user?.role || '') && req.status === 'pending' && (
                   <div className="flex gap-2">
                     <Button
                       size="sm"

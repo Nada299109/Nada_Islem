@@ -1,12 +1,15 @@
 'use client'
 
-import { useContext, useState, useEffect } from 'react'
+import { useContext, useState, useEffect, useMemo } from 'react'
 import { AppContext, Employee } from '@/context/app-context'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Progress } from '@/components/ui/progress'
+import { Checkbox } from '@/components/ui/checkbox'
+import { CheckCircle2, ListChecks } from 'lucide-react'
 
 interface EmployeeFormProps {
   employeeId?: string
@@ -16,7 +19,14 @@ interface EmployeeFormProps {
 const CONTRACT_TYPES: Array<Employee['contractType']> = ['CDI', 'CDD', 'Internship', 'Contractor']
 
 export default function EmployeeForm({ employeeId, onClose }: EmployeeFormProps) {
-  const { employees, roles, addEmployee, updateEmployee } = useContext(AppContext)
+  const { employees, roles, addEmployee, updateEmployee, onboardingPlans, toggleOnboardingTask } = useContext(AppContext)
+  const onboardingPlan = useMemo(
+    () => (employeeId ? onboardingPlans.find(p => p.employeeId === employeeId) : undefined),
+    [onboardingPlans, employeeId],
+  )
+  const doneCount = onboardingPlan?.tasks.filter(t => t.done).length ?? 0
+  const totalCount = onboardingPlan?.tasks.length ?? 0
+  const remainingCount = totalCount - doneCount
   const [formData, setFormData] = useState<Omit<Employee, 'id'>>({
     name: '',
     email: '',
@@ -281,6 +291,58 @@ export default function EmployeeForm({ employeeId, onClose }: EmployeeFormProps)
               </div>
             </div>
           </Card>
+
+          {employeeId && onboardingPlan && (
+            <Card className="p-6 bg-white">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                  <ListChecks size={20} /> Onboarding
+                </h2>
+                <div className="text-sm text-slate-500">
+                  Mentor: <span className="font-medium text-slate-700">{onboardingPlan.mentor}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 uppercase">Progress</p>
+                  <p className="text-2xl font-bold text-blue-600">{onboardingPlan.progress}%</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 uppercase">Done</p>
+                  <p className="text-2xl font-bold text-emerald-600">{doneCount}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 uppercase">Remaining</p>
+                  <p className="text-2xl font-bold text-amber-600">{remainingCount}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 uppercase">Started</p>
+                  <p className="text-sm font-semibold text-slate-700">{new Date(onboardingPlan.startDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              <Progress value={onboardingPlan.progress} className="h-2 mb-4" />
+
+              <div className="space-y-2">
+                {onboardingPlan.tasks.map(task => (
+                  <label
+                    key={task.id}
+                    className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={task.done}
+                      onCheckedChange={() => toggleOnboardingTask(onboardingPlan.id, task.id)}
+                    />
+                    <span className={`text-sm flex-1 ${task.done ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                      {task.label}
+                    </span>
+                    {task.done && <CheckCircle2 size={16} className="text-emerald-600" />}
+                  </label>
+                ))}
+              </div>
+            </Card>
+          )}
 
           <div className="flex gap-3">
             <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isLoadingForm}>

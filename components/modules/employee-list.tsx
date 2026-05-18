@@ -173,13 +173,13 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee }: Employee
           <p className="text-slate-600 mt-1">Manage all employees and perform bulk operations</p>
         </div>
         <div className="flex gap-2">
-          {user?.role === 'admin' && (
+          {(user?.role === 'admin' || user?.role === 'hr') && (
             <Button onClick={onAddEmployee} className="gap-2 bg-blue-600 hover:bg-blue-700">
               <UserPlus size={18} />
               Add Employee
             </Button>
           )}
-          {user?.role === 'admin' && (
+          {(user?.role === 'admin' || user?.role === 'hr') && (
             <Button
               onClick={() => setShowAuditTrail(!showAuditTrail)}
               variant="outline"

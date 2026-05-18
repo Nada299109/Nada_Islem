@@ -30,8 +30,9 @@ export class LeaveService {
     });
     if (!user) throw new NotFoundException('Approver user not found');
     const isAdmin = user.roles.some((r) => r.code === 'admin');
+    const isHr = user.roles.some((r) => r.code === 'hr');
     const isManager = user.roles.some((r) => r.code === 'manager');
-    return { user, isAdmin, isManager };
+    return { user, isAdmin, isHr, isManager };
   }
 
   private async resolveTypeAndPolicy(typeCodeOrId: string) {
@@ -206,7 +207,7 @@ export class LeaveService {
     const isDirectManager =
       !!leave.employee.manager &&
       leave.employee.manager.userId === approverUserId;
-    if (!ctx.isAdmin && !isDirectManager) {
+    if (!ctx.isAdmin && !ctx.isHr && !isDirectManager) {
       throw new ForbiddenException(
         'Only the direct manager or an admin can decide this leave request.',
       );

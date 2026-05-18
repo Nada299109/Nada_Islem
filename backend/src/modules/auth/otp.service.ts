@@ -8,7 +8,9 @@ export const OTP_DEFAULT_TTL_HOURS = 48;
 export const OTP_PURPOSE = {
   FIRST_LOGIN: 'first_login',
   PASSWORD_RESET: 'password_reset',
+  LOGIN_2FA: 'login_2fa',
 } as const;
+export const OTP_LOGIN_2FA_TTL_MINUTES = 10;
 
 export type OtpPurpose = typeof OTP_PURPOSE[keyof typeof OTP_PURPOSE];
 
@@ -16,7 +18,14 @@ export type OtpPurpose = typeof OTP_PURPOSE[keyof typeof OTP_PURPOSE];
 export class OtpService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private generatePlaintextOtp(): string {
+  private generatePlaintextOtp(purpose: OtpPurpose): string {
+    if (purpose === OTP_PURPOSE.LOGIN_2FA) {
+      // 6-digit numeric for 2FA — friendly UX.
+      const buf = randomBytes(6);
+      let out = '';
+      for (let i = 0; i < 6; i++) out += (buf[i] % 10).toString();
+      return out;
+    }
     // 8-char base32-ish token; uppercase + digits only, easy to dictate.
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     const buf = randomBytes(8);
@@ -49,9 +58,13 @@ export class OtpService {
       data: { usedAt: new Date() },
     });
 
-    const plaintext = this.generatePlaintextOtp();
+    const plaintext = this.generatePlaintextOtp(purpose);
     const hashedOtp = await AuthHelpers.hash(plaintext);
-    const expiresAt = new Date(Date.now() + ttlHours * 3600 * 1000);
+    const ttlMs =
+      purpose === OTP_PURPOSE.LOGIN_2FA
+        ? OTP_LOGIN_2FA_TTL_MINUTES * 60 * 1000
+        : ttlHours * 3600 * 1000;
+    const expiresAt = new Date(Date.now() + ttlMs);
 
     await this.prisma.oneTimePassword.create({
       data: { userId, purpose, hashedOtp, expiresAt },

@@ -15,10 +15,18 @@ import { GLOBAL_CONFIG } from '../../configs/global.config';
 import {
   AuthResponseDTO,
   FirstLoginDTO,
+  FirstLoginRequiredResponseDTO,
   LoginUserDTO,
+  OtpChallengeResponseDTO,
   RegisterUserDTO,
+  VerifyLoginOtpDTO,
 } from './auth.dto';
 import { OTP_PURPOSE, OtpService } from './otp.service';
+
+export type LoginOutcome =
+  | AuthResponseDTO
+  | OtpChallengeResponseDTO
+  | FirstLoginRequiredResponseDTO;
 
 @Injectable()
 export class AuthService {
@@ -51,7 +59,7 @@ export class AuthService {
     });
   }
 
-  public async login(loginUserDTO: LoginUserDTO): Promise<AuthResponseDTO> {
+  public async login(loginUserDTO: LoginUserDTO): Promise<LoginOutcome> {
     const userData = await this.userService.findUser({
       email: loginUserDTO.email,
     });
@@ -80,17 +88,62 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
-    if (userData.mustChangePassword) {
-      throw new UnauthorizedException(
-        'First-login required: use /auth/first-login with the OTP issued by HR',
-      );
-    }
-
     if (userData.failedLoginAttempts > 0 || userData.lockedUntil) {
       await this.prisma.user.update({
         where: { id: userData.id },
         data: { failedLoginAttempts: 0, lockedUntil: null },
       });
+    }
+
+    if (userData.mustChangePassword) {
+      // First-login: tell client to switch to the OTP + new-password form.
+      return {
+        requirePasswordChange: true,
+        email: userData.email,
+      };
+    }
+
+    // charge.docx §4.1 / Platform-Level Acceptance — issue a 2FA OTP on every login.
+    const { expiresAt } = await this.otpService.issue(
+      userData.id,
+      OTP_PURPOSE.LOGIN_2FA,
+    );
+    const challengeToken = this.jwtService.sign(
+      { sub: userData.id, scope: 'login_2fa' },
+      { expiresIn: '10m' },
+    );
+
+    return {
+      requireOtp: true,
+      challengeToken,
+      email: userData.email,
+      expiresAt,
+    };
+  }
+
+  public async verifyLoginOtp(dto: VerifyLoginOtpDTO): Promise<AuthResponseDTO> {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(dto.challengeToken);
+    } catch {
+      throw new UnauthorizedException('Login challenge expired — restart sign-in.');
+    }
+    if (payload?.scope !== 'login_2fa' || !payload?.sub) {
+      throw new UnauthorizedException('Invalid login challenge.');
+    }
+
+    const ok = await this.otpService.consume(
+      payload.sub,
+      dto.otp,
+      OTP_PURPOSE.LOGIN_2FA,
+    );
+    if (!ok) {
+      throw new UnauthorizedException('Invalid or expired OTP code.');
+    }
+
+    const userData = await this.userService.findUser({ id: payload.sub });
+    if (!userData || !userData.isActive) {
+      throw new UnauthorizedException();
     }
 
     return {

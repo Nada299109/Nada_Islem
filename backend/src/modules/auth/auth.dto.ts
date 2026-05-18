@@ -9,6 +9,30 @@ export class AuthResponseDTO {
   accessToken: string;
 }
 
+export class OtpChallengeResponseDTO {
+  requireOtp: true;
+  challengeToken: string;
+  email: string;
+  expiresAt: Date;
+}
+
+export class FirstLoginRequiredResponseDTO {
+  requirePasswordChange: true;
+  email: string;
+}
+
+export class VerifyLoginOtpDTO {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  challengeToken: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  otp: string;
+}
+
 export class RegisterUserDTO {
   @IsString()
   @ApiProperty()

@@ -2,46 +2,65 @@
 
 import { useState, useContext, useMemo } from 'react'
 import { AppContext, AuditLog } from '@/context/app-context'
+import { AuthContext } from '@/context/auth-context'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Search, Filter, History, User, 
+import {
+  Search, Filter, History, User,
   Archive, Shield, Clock, Download,
   ExternalLink, Eye, RefreshCw
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { 
-  Table, TableBody, TableCell, 
-  TableHead, TableHeader, TableRow 
+import {
+  Table, TableBody, TableCell,
+  TableHead, TableHeader, TableRow
 } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function AuditLogsModule() {
   const { auditLogs, fetchAuditLogs, isLoading } = useContext(AppContext)
+  const { user } = useContext(AuthContext)
   const [searchTerm, setSearchTerm] = useState('')
   const [moduleFilter, setModuleFilter] = useState('all')
   const [actionFilter, setActionFilter] = useState('all')
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
+  const isAdmin = user?.role === 'admin'
+  const [scope, setScope] = useState<'mine' | 'all'>(isAdmin ? 'all' : 'mine')
+
+  const todayIso = new Date().toISOString().slice(0, 10)
+
+  const scopedLogs = useMemo(() => {
+    if (scope === 'mine') {
+      return auditLogs.filter(log => log.userId === user?.id || log.userId === user?.employeeId)
+    }
+    return auditLogs
+  }, [auditLogs, scope, user])
 
   const filteredLogs = useMemo(() => {
-    return auditLogs.filter(log => {
-      const matchesSearch = 
+    return scopedLogs.filter(log => {
+      const matchesSearch =
         log.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
         log.details?.toLowerCase().includes(searchTerm.toLowerCase())
-      
+
       const matchesModule = moduleFilter === 'all' || log.module === moduleFilter
       const matchesAction = actionFilter === 'all' || log.action.includes(actionFilter)
-      
+
       return matchesSearch && matchesModule && matchesAction
     })
-  }, [auditLogs, searchTerm, moduleFilter, actionFilter])
+  }, [scopedLogs, searchTerm, moduleFilter, actionFilter])
 
-  const modules = Array.from(new Set(auditLogs.map(l => l.module).filter(Boolean)))
-  const actions = Array.from(new Set(auditLogs.map(l => l.action.split('_')[0])))
+  const actionsToday = useMemo(
+    () => scopedLogs.filter(l => l.createdAt?.startsWith(todayIso)).length,
+    [scopedLogs, todayIso],
+  )
+
+  const modules = Array.from(new Set(scopedLogs.map(l => l.module).filter(Boolean)))
+  const actions = Array.from(new Set(scopedLogs.map(l => l.action.split('_')[0])))
 
   const getActionColor = (action: string) => {
     if (action.includes('CREATE')) return 'bg-emerald-100 text-emerald-700'
@@ -55,10 +74,24 @@ export default function AuditLogsModule() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">System Audit Logs</h2>
-          <p className="text-slate-500">Track all system activities and user actions</p>
+          <h2 className="text-2xl font-bold text-slate-900">
+            {scope === 'mine' ? 'My Activity' : 'System Audit Logs'}
+          </h2>
+          <p className="text-slate-500">
+            {scope === 'mine'
+              ? 'Every action you have performed — immutable record.'
+              : 'Track all system activities across users.'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Tabs value={scope} onValueChange={(v) => setScope(v as 'mine' | 'all')}>
+              <TabsList>
+                <TabsTrigger value="mine">My Activity</TabsTrigger>
+                <TabsTrigger value="all">All Activity</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
           <Button variant="outline" size="sm" onClick={() => fetchAuditLogs()} disabled={isLoading}>
             <RefreshCw size={14} className={`mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
@@ -78,7 +111,7 @@ export default function AuditLogsModule() {
                   </div>
                   <div>
                       <p className="text-sm text-slate-500">Total Logs</p>
-                      <p className="text-xl font-bold text-slate-900">{auditLogs.length}</p>
+                      <p className="text-xl font-bold text-slate-900">{scopedLogs.length}</p>
                   </div>
               </div>
           </Card>
@@ -90,7 +123,7 @@ export default function AuditLogsModule() {
                   <div>
                       <p className="text-sm text-slate-500">Recent Creations</p>
                       <p className="text-xl font-bold text-slate-900">
-                          {auditLogs.filter(l => l.action.includes('CREATE')).length}
+                          {scopedLogs.filter(l => l.action.includes('CREATE')).length}
                       </p>
                   </div>
               </div>
@@ -103,7 +136,7 @@ export default function AuditLogsModule() {
                   <div>
                       <p className="text-sm text-slate-500">Security Events</p>
                       <p className="text-xl font-bold text-slate-900">
-                          {auditLogs.filter(l => l.module === 'AUTH').length}
+                          {scopedLogs.filter(l => l.module?.toUpperCase() === 'AUTH').length}
                       </p>
                   </div>
               </div>
@@ -115,7 +148,7 @@ export default function AuditLogsModule() {
                   </div>
                   <div>
                       <p className="text-sm text-slate-500">Actions Today</p>
-                      <p className="text-xl font-bold text-slate-900">32</p>
+                      <p className="text-xl font-bold text-slate-900">{actionsToday}</p>
                   </div>
               </div>
           </Card>
