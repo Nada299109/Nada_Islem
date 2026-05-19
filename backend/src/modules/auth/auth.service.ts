@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -30,6 +31,8 @@ export type LoginOutcome =
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private userService: UserService,
     private prisma: PrismaService,
@@ -104,10 +107,21 @@ export class AuthService {
     }
 
     // charge.docx §4.1 / Platform-Level Acceptance — issue a 2FA OTP on every login.
-    const { expiresAt } = await this.otpService.issue(
+    const { otp, expiresAt } = await this.otpService.issue(
       userData.id,
       OTP_PURPOSE.LOGIN_2FA,
     );
+
+    // Dev fallback: when SMTP is not configured we cannot email the code, so
+    // surface it on the backend console + in the HTTP response so the user can
+    // still complete login. In prod (SMTP_HOST set) this path is silent.
+    const smtpConfigured = !!process.env.SMTP_HOST;
+    if (!smtpConfigured) {
+      this.logger.warn(
+        `[DEV] 2FA OTP for ${userData.email}: ${otp} (expires ${expiresAt.toISOString()})`,
+      );
+    }
+
     const challengeToken = this.jwtService.sign(
       { sub: userData.id, scope: 'login_2fa' },
       { expiresIn: '10m' },
@@ -118,6 +132,7 @@ export class AuthService {
       challengeToken,
       email: userData.email,
       expiresAt,
+      ...(smtpConfigured ? {} : { devOtp: otp }),
     };
   }
 

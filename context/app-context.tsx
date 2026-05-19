@@ -228,7 +228,9 @@ export interface NotificationItem {
   type: 'info' | 'success' | 'warning'
   createdAt: string
   isRead: boolean
-  userId?: string
+  userId?: string            // target a specific user account id
+  targetEmployeeId?: string  // target a specific employee record id (mapped to user via auth state)
+  audienceRoles?: string[]   // fan-out to all users in these roles ('admin' | 'hr' | 'manager' | 'employee')
 }
 
 export interface ToolRecord {
@@ -425,6 +427,7 @@ const defaultNotifications: NotificationItem[] = [
     type: 'info',
     createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     isRead: false,
+    audienceRoles: ['admin', 'hr', 'manager', 'employee'],
   },
 ]
 
@@ -1080,11 +1083,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       next.notifications = [
         {
           id: createId('notif'),
-          title: 'Leave submitted',
-          message: `${leave.employeeName} submitted a ${leave.type} leave request.`,
+          title: 'New leave request',
+          message: `${leave.employeeName} submitted a ${leave.type} leave request awaiting review.`,
           type: 'info',
           createdAt: new Date().toISOString(),
           isRead: false,
+          audienceRoles: ['hr', 'manager', 'admin'],
         },
         ...next.notifications,
       ]
@@ -1104,10 +1108,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           {
             id: createId('notif'),
             title: `Leave ${status}`,
-            message: `${target.employeeName}'s request has been ${status}.`,
+            message: `Your ${target.type} leave request has been ${status}.`,
             type: status === 'approved' ? 'success' : 'warning',
             createdAt: new Date().toISOString(),
             isRead: false,
+            targetEmployeeId: target.employeeId,
           },
           ...next.notifications,
         ]
@@ -1154,13 +1159,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
         {
           id: createId('notif'),
           title: 'New support request',
-          message: `${newTicket.title} has been created in ${newTicket.categoryName}.`,
+          message: `${newTicket.employeeName} opened "${newTicket.title}" in ${newTicket.categoryName}.`,
           type: 'info',
           createdAt,
           isRead: false,
+          audienceRoles: ['hr', 'admin', 'manager'],
         },
         ...next.notifications,
       ]
+      if (newTicket.assignedToId) {
+        next.notifications = [
+          {
+            id: createId('notif'),
+            title: 'Ticket assigned to you',
+            message: `You have been assigned "${newTicket.title}" (priority: ${newTicket.priority}).`,
+            type: 'info',
+            createdAt,
+            isRead: false,
+            targetEmployeeId: newTicket.assignedToId,
+          },
+          ...next.notifications,
+        ]
+      }
       appendAudit(next, 'CREATE_TICKET', 'TICKETS', `Created ticket ${newTicket.id}`)
       return next
     })
@@ -1169,6 +1189,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateTicket = useCallback(async (id: string, data: Partial<Ticket>) => {
     commit(previous => {
       const next = structuredClone(previous)
+      const before = next.tickets.find(ticket => ticket.id === id)
       next.tickets = next.tickets.map(ticket => {
         if (ticket.id !== id) return ticket
 
@@ -1185,6 +1206,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
           slaStatus: nextSlaStatus,
         }
       })
+
+      // Notify the requester when their ticket is resolved/closed — unlocks the 5-star rating UI.
+      if (
+        before &&
+        data.status &&
+        data.status !== before.status &&
+        (data.status === 'resolved' || data.status === 'closed')
+      ) {
+        next.notifications = [
+          {
+            id: createId('notif'),
+            title: `Ticket ${data.status}`,
+            message: `Your ticket "${before.title}" was marked ${data.status}. Please rate the resolution.`,
+            type: 'success',
+            createdAt: new Date().toISOString(),
+            isRead: false,
+            targetEmployeeId: before.employeeId,
+          },
+          ...next.notifications,
+        ]
+      }
+
       appendAudit(next, 'UPDATE_TICKET', 'TICKETS', `Updated ticket ${id}`)
       return next
     })
@@ -1218,6 +1261,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const assignTicket = useCallback(async (id: string, employeeId: string) => {
     commit(previous => {
       const next = structuredClone(previous)
+      const before = next.tickets.find(item => item.id === id)
       const assignee = next.employees.find(item => item.id === employeeId)
       next.tickets = next.tickets.map(ticket => ticket.id === id
         ? {
@@ -1226,6 +1270,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
             assignedToName: assignee?.name,
           }
         : ticket)
+
+      if (employeeId && before && employeeId !== before.assignedToId) {
+        next.notifications = [
+          {
+            id: createId('notif'),
+            title: 'Ticket assigned to you',
+            message: `You have been assigned "${before.title}" (priority: ${before.priority}).`,
+            type: 'info',
+            createdAt: new Date().toISOString(),
+            isRead: false,
+            targetEmployeeId: employeeId,
+          },
+          ...next.notifications,
+        ]
+      }
+
       appendAudit(next, 'ASSIGN_TICKET', 'TICKETS', `Assigned ticket ${id} to ${assignee?.name || 'nobody'}`)
       return next
     })

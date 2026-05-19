@@ -17,9 +17,21 @@ export default function Header({ user, onLogout }: HeaderProps) {
 
   const visibleNotifications = useMemo(() => {
     return notifications
-      .filter(notification => !notification.userId || notification.userId === user.id)
+      .filter(notification => {
+        if (notification.userId && notification.userId === user.id) return true
+        if (
+          notification.targetEmployeeId &&
+          user.employeeId &&
+          notification.targetEmployeeId === user.employeeId
+        ) return true
+        if (
+          notification.audienceRoles &&
+          notification.audienceRoles.includes(user.role)
+        ) return true
+        return false
+      })
       .slice(0, 6)
-  }, [notifications, user.id])
+  }, [notifications, user.id, user.role, user.employeeId])
 
   const unreadCount = visibleNotifications.filter(notification => !notification.isRead).length
 

@@ -14,6 +14,7 @@ export class OtpChallengeResponseDTO {
   challengeToken: string;
   email: string;
   expiresAt: Date;
+  devOtp?: string;
 }
 
 export class FirstLoginRequiredResponseDTO {
