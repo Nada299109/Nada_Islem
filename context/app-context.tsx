@@ -765,7 +765,7 @@ function buildDefaultState(): AppState {
     roles,
     onboardingPlans: createDefaultOnboardingPlans(employees),
     settings: {
-      companyName: 'IntraConnect',
+      companyName: 'Intranet',
       supportEmail: 'support@intraconnect.local',
       timezone: 'Africa/Tunis',
     },

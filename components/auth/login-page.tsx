@@ -8,13 +8,9 @@ import { Card } from '@/components/ui/card'
 import { Alert } from '@/components/ui/alert'
 import { ArrowLeft, KeyRound, Lock, Mail, ShieldCheck, Sparkles } from 'lucide-react'
 
-interface LoginPageProps {
-  onSwitchToRegister: () => void
-}
-
 type Step = 'credentials' | 'otp' | 'change_password'
 
-export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
+export default function LoginPage() {
   const {
     login,
     verifyLoginOtp,
@@ -116,7 +112,7 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
               <Sparkles size={20} />
             </div>
-            <span className="text-2xl font-bold tracking-tight">IntraConnect</span>
+            <span className="text-2xl font-bold tracking-tight">Intranet</span>
           </div>
         </div>
 
@@ -145,7 +141,7 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
         </div>
 
         <p className="relative text-xs text-slate-500">
-          charge.docx Phase-1 demo · {new Date().getFullYear()} IntraConnect
+          charge.docx Phase-1 demo · {new Date().getFullYear()} Intranet
         </p>
       </div>
 
@@ -169,7 +165,7 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
               {step === 'change_password' && 'Set your password'}
             </h2>
             <p className="text-slate-500 mt-1 text-sm">
-              {step === 'credentials' && 'Sign in to access IntraConnect.'}
+              {step === 'credentials' && 'Sign in to access Intranet.'}
               {step === 'otp' && `We sent a 6-digit code to ${email}. It expires in ${Math.floor(countdown / 60)}:${(countdown % 60).toString().padStart(2, '0')}.`}
               {step === 'change_password' && 'First-time login. Enter the OTP from HR and choose a new password.'}
             </p>
@@ -242,17 +238,7 @@ export default function LoginPage({ onSwitchToRegister }: LoginPageProps) {
               </Button>
 
               <div className="pt-4 border-t border-slate-100">
-                <p className="text-sm text-slate-600 text-center">
-                  No account?{' '}
-                  <button
-                    type="button"
-                    onClick={onSwitchToRegister}
-                    className="text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Create one
-                  </button>
-                </p>
-                <details className="mt-4 text-xs text-slate-500">
+                <details className="text-xs text-slate-500">
                   <summary className="cursor-pointer">Demo accounts</summary>
                   <div className="mt-2 space-y-1 font-mono">
                     <p>Admin — nada.br@intraconnect.com / demo123</p>

@@ -3,12 +3,10 @@
 import { useContext, useEffect, useState } from 'react'
 import { AuthContext } from '@/context/auth-context'
 import LoginPageComponent from '@/components/auth/login-page'
-import RegisterPageComponent from '@/components/auth/register-page'
 import MainLayoutComponent from '@/components/layout/main-layout'
 
 export default function HomePage() {
   const { user } = useContext(AuthContext)
-  const [showRegister, setShowRegister] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -24,10 +22,7 @@ export default function HomePage() {
   }
 
   if (!user) {
-    if (showRegister) {
-      return <RegisterPageComponent onSwitchToLogin={() => setShowRegister(false)} />
-    }
-    return <LoginPageComponent onSwitchToRegister={() => setShowRegister(true)} />
+    return <LoginPageComponent />
   }
 
   return <MainLayoutComponent />

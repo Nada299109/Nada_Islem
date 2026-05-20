@@ -9,7 +9,7 @@ const ONBOARDING_TASKS = [
   { id: 2, title: 'Sign HR Documents', desc: 'NDA, Employee Handbook, and Tax forms.', status: 'completed' },
   { id: 3, title: 'Setup IT Equipment', desc: 'Laptop configuration and security protocols.', status: 'in-progress' },
   { id: 4, title: 'Meet Your Team', desc: 'Schedule a 1:1 with your manager and team members.', status: 'pending' },
-  { id: 5, title: 'Intranet Orientation', desc: 'Review policies and benefits on IntraConnect.', status: 'pending' },
+  { id: 5, title: 'Intranet Orientation', desc: 'Review policies and benefits on Intranet.', status: 'pending' },
 ]
 
 export default function Onboarding() {

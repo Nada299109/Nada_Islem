@@ -6,8 +6,9 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Progress } from '@/components/ui/progress'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Edit, Trash2, Search, FileUp, Users, History, Download, CheckCircle2, XCircle, UserPlus } from 'lucide-react'
+import { Edit, Trash2, Search, FileUp, Users, History, Download, CheckCircle2, XCircle, UserPlus, ListChecks } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { AuthContext } from '@/context/auth-context'
 import AuditLogList from './audit-log-list'
@@ -52,7 +53,7 @@ function parseCsv(text: string): { rows: Record<string, string>[]; headers: stri
 export default function EmployeeList({ onEditEmployee, onAddEmployee }: EmployeeListProps) {
   const {
     employees, deleteEmployee, advancedSearch, addBulkEmployees, isLoading,
-    bulkActivateEmployees, exportEmployeesCsv,
+    bulkActivateEmployees, exportEmployeesCsv, onboardingPlans,
   } = useContext(AppContext)
   const { user } = useContext(AuthContext)
   const [searchTerm, setSearchTerm] = useState('')
@@ -97,6 +98,7 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee }: Employee
   const paginatedEmployees = filtered.slice(start, start + itemsPerPage)
 
   const allOnPageSelected = paginatedEmployees.length > 0 && paginatedEmployees.every(e => selected.has(e.id))
+  const canViewOnboarding = user?.role === 'admin' || user?.role === 'hr'
 
   const togglePageSelection = () => {
     setSelected(prev => {
@@ -294,58 +296,88 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee }: Employee
                 <TableHead>Contract</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
+                {canViewOnboarding && <TableHead>Onboarding</TableHead>}
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedEmployees.map(emp => (
-                <TableRow key={emp.id} className="hover:bg-slate-50 transition-colors">
-                  <TableCell>
-                    <Checkbox
-                      checked={selected.has(emp.id)}
-                      onCheckedChange={() => toggleOne(emp.id)}
-                      aria-label={`Select ${emp.name}`}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium text-slate-900">{emp.name}</TableCell>
-                  <TableCell className="text-slate-600">{emp.email}</TableCell>
-                  <TableCell>{emp.department}</TableCell>
-                  <TableCell className="text-slate-600">{emp.contractType || '—'}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-slate-800">{emp.roleName || 'Unassigned'}</span>
-                      <span className="text-xs text-slate-500">{emp.roleCode || 'no-role'}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      emp.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                    }`}>
-                      {emp.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600" onClick={() => onEditEmployee(emp.id)}>
-                        <Edit size={16} />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0 text-slate-400 hover:text-rose-600"
-                        onClick={async () => {
-                          if (confirm('Soft-delete this employee (sets status=inactive)?')) {
-                            try { await deleteEmployee(emp.id) }
-                            catch (err: any) { alert(err.message || 'Failed') }
-                          }
-                        }}
+              {paginatedEmployees.map(emp => {
+                const onboardingPlan = onboardingPlans.find(plan => plan.employeeId === emp.id)
+                const doneCount = onboardingPlan?.tasks.filter(task => task.done).length ?? 0
+                const totalCount = onboardingPlan?.tasks.length ?? 0
+
+                return (
+                  <TableRow key={emp.id} className="hover:bg-slate-50 transition-colors">
+                    <TableCell>
+                      <Checkbox
+                        checked={selected.has(emp.id)}
+                        onCheckedChange={() => toggleOne(emp.id)}
+                        aria-label={`Select ${emp.name}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        type="button"
+                        onClick={() => onEditEmployee(emp.id)}
+                        className="font-medium text-slate-900 hover:text-blue-700"
                       >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {emp.name}
+                      </button>
+                    </TableCell>
+                    <TableCell className="text-slate-600">{emp.email}</TableCell>
+                    <TableCell>{emp.department}</TableCell>
+                    <TableCell className="text-slate-600">{emp.contractType || '—'}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-slate-800">{emp.roleName || 'Unassigned'}</span>
+                        <span className="text-xs text-slate-500">{emp.roleCode || 'no-role'}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        emp.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                      }`}>
+                        {emp.status}
+                      </span>
+                    </TableCell>
+                    {canViewOnboarding && (
+                      <TableCell className="min-w-[180px]">
+                        {onboardingPlan ? (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-semibold text-slate-700">{onboardingPlan.progress}%</span>
+                              <span className="text-slate-500">{doneCount}/{totalCount}</span>
+                            </div>
+                            <Progress value={onboardingPlan.progress} className="h-2" />
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">No checklist</span>
+                        )}
+                      </TableCell>
+                    )}
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600" onClick={() => onEditEmployee(emp.id)} title="Open employee">
+                          {canViewOnboarding ? <ListChecks size={16} /> : <Edit size={16} />}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-slate-400 hover:text-rose-600"
+                          onClick={async () => {
+                            if (confirm('Soft-delete this employee (sets status=inactive)?')) {
+                              try { await deleteEmployee(emp.id) }
+                              catch (err: any) { alert(err.message || 'Failed') }
+                            }
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

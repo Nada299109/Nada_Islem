@@ -44,7 +44,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
   return (
     <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">IntraConnect Dashboard</h1>
+        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Intranet Dashboard</h1>
         <p className="text-sm text-slate-500">Welcome back, {user.name}</p>
       </div>
 
