@@ -1,6 +1,6 @@
 'use client'
 
-import { Home, Users, Calendar, FileText, Ticket, Folder, UserPlus, FileSpreadsheet, BookOpen, MessageSquare, Building2, Network, Shield, Wrench, Clock, History, Settings } from 'lucide-react'
+import { Home, Users, Calendar, FileText, Ticket, Folder, FileSpreadsheet, BookOpen, MessageSquare, Building2, Network, Shield, Wrench, Clock, History, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface SidebarProps {
@@ -31,24 +31,9 @@ export default function Sidebar({ activeModule, setActiveModule, userRole }: Sid
 
   const visibleItems = menuItems.filter(item => item.roles.includes(userRole))
 
-  const renderAdminLikeBlock = (showOnboarding = true, showLeaveConfig = true, showAdminConsole = true) => (
+  const renderAdminLikeBlock = (showLeaveConfig = true, showAdminConsole = true) => (
     <>
       <div className="mt-8 mb-4 border-t border-slate-700 pt-4"></div>
-      {showOnboarding && (
-        <Button
-          variant={activeModule === 'onboarding' ? 'default' : 'ghost'}
-          className={`w-full justify-start gap-3 ${
-            activeModule === 'onboarding'
-              ? 'bg-blue-600 hover:bg-blue-700'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
-          }`}
-          onClick={() => setActiveModule('onboarding')}
-        >
-          <UserPlus size={20} />
-          Onboarding
-        </Button>
-      )}
-
       {showLeaveConfig && (
         <Button
           variant={activeModule === 'leave-config' ? 'default' : 'ghost'}
@@ -84,7 +69,7 @@ export default function Sidebar({ activeModule, setActiveModule, userRole }: Sid
   return (
     <aside className="w-64 bg-slate-900 text-white p-6 flex flex-col h-full overflow-y-auto">
       <div className="mb-8">
-        <h2 className="text-xl font-bold">IntraConnect</h2>
+        <h2 className="text-xl font-bold">Intranet</h2>
         <p className="text-xs text-slate-400 mt-1 uppercase">{userRole}</p>
       </div>
 
@@ -123,11 +108,11 @@ export default function Sidebar({ activeModule, setActiveModule, userRole }: Sid
           </Button>
         )}
 
-        {userRole === 'admin' && renderAdminLikeBlock(true, true, true)}
+        {userRole === 'admin' && renderAdminLikeBlock(true, true)}
 
         {userRole === 'hr' && (
           <>
-            {renderAdminLikeBlock(true, true, false)}
+            {renderAdminLikeBlock(true, false)}
             <Button
               variant={activeModule === 'attendance-policy' ? 'default' : 'ghost'}
               className={`w-full justify-start gap-3 ${

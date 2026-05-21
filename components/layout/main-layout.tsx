@@ -23,7 +23,6 @@ const FacilityManagement = lazy(() => import('@/components/modules/facility-mana
 const JobTitles = lazy(() => import('@/components/modules/job-titles'))
 const FeedbackModule = lazy(() => import('@/components/modules/feedback'))
 const TrainingList = lazy(() => import('@/components/modules/training-list'))
-const OnboardingList = lazy(() => import('@/components/modules/onboarding-list'))
 const StaffDirectory = lazy(() => import('@/components/modules/staff-directory'))
 const Tools = lazy(() => import('@/components/modules/tools'))
 const AdminSettings = lazy(() => import('@/components/modules/admin-settings'))
@@ -97,8 +96,6 @@ export default function MainLayout() {
         return <PayrollList />
       case 'tools':
         return <Tools />
-      case 'onboarding':
-        return <OnboardingList />
       case 'training':
         return <TrainingList />
       case 'feedback':
@@ -158,7 +155,7 @@ export default function MainLayout() {
           >
             {mobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <h2 className="font-bold text-slate-900">IntraConnect</h2>
+          <h2 className="font-bold text-slate-900">Intranet</h2>
           <div className="w-9" />
         </div>
 

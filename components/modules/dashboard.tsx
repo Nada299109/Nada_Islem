@@ -9,6 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { Users, FileText, CheckCircle, Clock, Building2, ShieldAlert, Network, UserPlus, Ticket as TicketIcon, Folder, Wallet, Wrench, Timer, ClipboardList, ChevronRight } from 'lucide-react'
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+const SURVEY_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScT3TwNdYb3UU6FW-Z3Ulp8FxGuTnF8GRsCTmtFWaWJb9sapw/viewform'
 
 interface DashboardProps {
   onNavigate?: (module: string) => void
@@ -112,21 +113,25 @@ export default function Dashboard({ onNavigate }: DashboardProps = {}) {
                 <p className="text-xs text-slate-500">Share your feedback — your responses stay anonymous.</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" className="text-indigo-700" onClick={() => go('feedback')}>
-              See all <ChevronRight size={14} className="ml-1" />
+            <Button variant="ghost" size="sm" className="text-indigo-700" asChild>
+              <a href={SURVEY_FORM_URL} target="_blank" rel="noopener noreferrer">
+                Open form <ChevronRight size={14} className="ml-1" />
+              </a>
             </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {activeSurveys.map((s: any) => (
-              <button
+              <a
                 key={s.id}
-                onClick={() => go('feedback')}
+                href={SURVEY_FORM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-left p-4 bg-white border border-indigo-100 rounded-lg hover:border-indigo-300 hover:shadow-md transition-all"
               >
                 <p className="font-semibold text-slate-900 line-clamp-1">{s.title}</p>
                 <p className="text-xs text-slate-500 mt-1 line-clamp-2">{s.description}</p>
                 <p className="text-xs text-indigo-600 mt-3 font-medium">Participate →</p>
-              </button>
+              </a>
             ))}
           </div>
         </Card>
