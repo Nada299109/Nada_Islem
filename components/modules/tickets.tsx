@@ -36,6 +36,7 @@ export default function Tickets() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const [ticketForm, setTicketForm] = useState({
     title: '',
@@ -79,6 +80,39 @@ export default function Tickets() {
       alert('Failed to submit ticket: ' + err.message)
     }
   }
+
+  const generateDescription = async () => {
+  if (!ticketForm.title && !ticketForm.categoryId) {
+    alert('Please fill in the title and category first.')
+    return
+  }
+  setIsGenerating(true)
+  const categoryName = ticketCategories.find(c => c.id === ticketForm.categoryId)?.name || 'General'
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: `Write a short professional support ticket description for: "${ticketForm.title}" in category "${categoryName}" with ${ticketForm.priority} priority. 2-3 sentences, clear and factual. Return only the description text.`
+        }]
+      })
+    })
+    const data = await response.json()
+    const text = data.choices?.[0]?.message?.content?.trim()
+    if (text) setTicketForm(prev => ({ ...prev, description: text }))
+  } catch {
+    alert('AI generation failed, please type manually.')
+  } finally {
+    setIsGenerating(false)
+  }
+}
 
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
@@ -204,7 +238,7 @@ export default function Tickets() {
                       className="h-11 border-slate-200"
                     />
                   </div>
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-700">Detailed Description</label>
                     <textarea 
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] text-sm" 
@@ -212,7 +246,34 @@ export default function Tickets() {
                       value={ticketForm.description}
                       onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })}
                     />
-                  </div>
+                  </div> */}
+                  <div className="space-y-2">
+  <label className="text-sm font-semibold text-slate-700">Detailed Description</label>
+  <div className="relative">
+    <textarea
+      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] text-sm pb-10"
+      placeholder="Please provide specifics to help us resolve this faster..."
+      value={ticketForm.description}
+      onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })}
+    />
+    <button
+      type="button"
+      disabled={isGenerating}
+      onClick={generateDescription}
+      className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5 rounded-md transition-all"
+    >
+      {isGenerating ? (
+        <>
+          <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+          Generating...
+        </>
+      ) : (
+        <>✨ Generate</>
+      )}
+    </button>
+  </div>
+  <p className="text-xs text-slate-400">AI generates a description based on title & category.</p>
+</div>
                 </div>
                 <DialogFooter className="gap-2">
                   <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>

@@ -94,7 +94,7 @@ export default function TicketDetail({ ticket, onClose }: TicketDetailProps) {
   const isAdminOrAgent = user?.role === 'admin' || user?.role === 'manager'
 
   return (
-    <div className="flex flex-col h-full bg-white border-l border-slate-200 shadow-2xl">
+<div className="flex flex-col h-full max-h-full bg-white border-l border-slate-200 shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
         <div className="flex items-center gap-3">
@@ -109,7 +109,7 @@ export default function TicketDetail({ ticket, onClose }: TicketDetailProps) {
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col">
-        <ScrollArea className="flex-1 p-6">
+        <ScrollArea className="flex-1 overflow-y-auto p-6" style={{ height: 0 }}>
           <div className="space-y-6">
             {/* Meta Info */}
             <div className="grid grid-cols-2 gap-4">

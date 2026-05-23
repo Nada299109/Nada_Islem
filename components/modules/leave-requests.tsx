@@ -23,6 +23,8 @@ export default function LeaveRequests({ isRequestForm = false }: LeaveRequestsPr
     reason: ''
   })
 
+  const [isGenerating, setIsGenerating] = useState(false)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user?.employeeId) {
@@ -46,7 +48,35 @@ export default function LeaveRequests({ isRequestForm = false }: LeaveRequestsPr
       alert("Failed to submit leave request: " + (err.message || "Unknown error"))
     }
   }
-
+ const generateReason = async () => {
+    setIsGenerating(true)
+    const typeLabels = { annual: 'Annual Leave', sick: 'Sick Leave', personal: 'Personal Leave' }
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          max_tokens: 200,
+          messages: [{
+            role: "user",
+            content: `Write a short professional leave request reason for: "${typeLabels[formData.type]}". 
+            1-2 sentences, formal tone, no brackets, ready to use. Return only the reason text.`
+          }]
+        })
+      })
+      const data = await response.json()
+      const text = data.choices?.[0]?.message?.content?.trim() // ✅ fixed
+      if (text) setFormData(prev => ({ ...prev, reason: text }))
+    } catch (e) {
+      alert("AI generation failed, please type manually.")
+    } finally {
+      setIsGenerating(false)
+    }
+  }
   const pendingRequests = leaveRequests.filter(r => r.status === 'pending')
 
   if (isRequestForm) {
@@ -93,13 +123,34 @@ export default function LeaveRequests({ isRequestForm = false }: LeaveRequestsPr
               </Select>
             </div>
 
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Reason</label>
               <Textarea
                 value={formData.reason}
                 onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                 placeholder="Optional reason for leave"
               />
+            </div> */}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Reason</label>
+              <div className="relative">
+                <Textarea
+                  value={formData.reason}
+                  onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                  placeholder="Describe your reason, or click ✨ Generate..."
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isGenerating}
+                  onClick={generateReason}
+                  className="absolute bottom-2 right-2 bg-violet-600 hover:bg-violet-700 text-xs gap-1"
+                >
+                  {isGenerating ? '⏳ Generating...' : '✨ Generate'}
+                </Button>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">AI generates a professional reason based on your leave type.</p>
             </div>
 
             <div className="flex gap-3 pt-4">

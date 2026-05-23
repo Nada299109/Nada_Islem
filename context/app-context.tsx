@@ -843,7 +843,7 @@ export const AppContext = createContext<AppContextType>({
   ...buildDefaultState(),
   isLoading: false,
   error: null,
-  isDemoMode: true,
+  isDemoMode: false,
   addEmployee: async () => {},
   addBulkEmployees: async () => {},
   updateEmployee: async () => {},
@@ -1929,7 +1929,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     upsertFacilityAsset,
     createFacilityRequest,
     escalateFacilityToTicket,
-    isDemoMode: true,
+    isDemoMode: false,
   }), [
     state,
     employeeDirectory,

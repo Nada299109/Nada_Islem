@@ -42,13 +42,56 @@ export default function TimeTracking() {
     return () => clearInterval(id)
   }, [])
 
-  const liveSeconds = useMemo(() => {
-    if (!record || state !== 'working') return null
-    const lastEvent = record.events[record.events.length - 1]
-    if (!lastEvent || lastEvent.type !== 'clock_in' && lastEvent.type !== 'break_end') return null
-    const since = new Date(lastEvent.occurredAt).getTime()
-    return Math.floor((now - since) / 1000) + record.workedMinutes * 60
-  }, [now, record, state])
+  // const liveSeconds = useMemo(() => {
+  //   if (!record || state !== 'working') return null
+  //   const lastEvent = record.events[record.events.length - 1]
+  //   if (!lastEvent || lastEvent.type !== 'clock_in' && lastEvent.type !== 'break_end') return null
+  //   const since = new Date(lastEvent.occurredAt).getTime()
+  //   return Math.floor((now - since) / 1000) + record.workedMinutes * 60
+  // }, [now, record, state])
+
+  // Replace the liveSeconds useMemo with this:
+const workedSeconds = useMemo(() => {
+  if (!record?.events) return 0
+  let total = 0
+  let lastStart: number | null = null
+
+  for (const ev of record.events) {
+    const t = new Date(ev.occurredAt).getTime()
+    if (ev.type === 'clock_in' || ev.type === 'break_end') {
+      lastStart = t
+    } else if ((ev.type === 'break_start' || ev.type === 'clock_out') && lastStart) {
+      total += t - lastStart
+      lastStart = null
+    }
+  }
+
+  // if still working, count up to now
+  if (lastStart && state === 'working') {
+    total += now - lastStart
+  }
+
+  return Math.floor(total / 1000)
+}, [record, state, now])
+
+const breakSeconds = useMemo(() => {
+  if (!record?.events) return 0
+  let total = 0
+  let lastBreak: number | null = null
+
+  for (const ev of record.events) {
+    const t = new Date(ev.occurredAt).getTime()
+    if (ev.type === 'break_start') lastBreak = t
+    else if (ev.type === 'break_end' && lastBreak) {
+      total += t - lastBreak
+      lastBreak = null
+    }
+  }
+  return Math.floor(total / 1000)
+}, [record, now])
+
+const formatSeconds = (s: number) =>
+  `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60).toString().padStart(2, '0')}m ${(s % 60).toString().padStart(2, '0')}s`
 
   const team = user?.role === 'manager' ? getTeamAttendance() : []
 
@@ -91,11 +134,15 @@ export default function TimeTracking() {
             </div>
             <div className="text-right">
               <p className="text-sm text-slate-500">Live timer</p>
-              <p className="text-3xl font-mono font-bold text-blue-700">
+              {/* <p className="text-3xl font-mono font-bold text-blue-700">
                 {liveSeconds != null
                   ? `${Math.floor(liveSeconds / 3600)}h ${Math.floor((liveSeconds % 3600) / 60).toString().padStart(2,'0')}m`
                   : formatLiveTimer({ record } as any)}
+              </p> */}
+              <p className="text-3xl font-mono font-bold text-blue-700">
+                {formatSeconds(workedSeconds)}
               </p>
+
             </div>
           </div>
 
@@ -145,11 +192,11 @@ export default function TimeTracking() {
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-500">Worked</span>
-              <span className="font-semibold">{formatDuration(record?.workedMinutes ?? 0)}</span>
+              <span className="font-semibold">{formatSeconds(workedSeconds)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Break</span>
-              <span className="font-semibold">{formatDuration(record?.breakMinutes ?? 0)}</span>
+              <span className="font-semibold">{formatSeconds(breakSeconds)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Status</span>
